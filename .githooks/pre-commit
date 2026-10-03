@@ -1,0 +1,11 @@
+#!/bin/sh
+# Blocks the commit when a secret is found in the staged changes.
+# Enabled per clone with: git config core.hooksPath .githooks
+set -eu
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "pre-commit: gitleaks not found, commit refused. See README.md to install it." >&2
+  exit 1
+fi
+
+exec gitleaks git --pre-commit --staged --redact --verbose --no-banner --config .gitleaks.toml

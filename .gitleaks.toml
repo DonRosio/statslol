@@ -1,0 +1,17 @@
+# Gitleaks configuration: built-in ruleset + project-specific rules.
+# Docs: https://github.com/gitleaks/gitleaks#configuration
+
+title = "statslol"
+
+[extend]
+# Keep every built-in rule (AWS, GitHub, Stripe, generic API keys, ...).
+useDefault = true
+
+# The built-in ruleset only catches a Riot key when it sits next to a hint such as
+# "API_KEY=" or a curl auth header. A bare "RGAPI-..." value pasted anywhere would
+# go unnoticed without this rule.
+[[rules]]
+id = "riot-api-key"
+description = "Riot Games API key"
+regex = '''RGAPI-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'''
+keywords = ["rgapi-"]

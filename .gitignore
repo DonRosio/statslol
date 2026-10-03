@@ -1,0 +1,32 @@
+# --- Secrets: never commit -------------------------------------------------
+# Real configuration lives in .env files; only the documented template is tracked.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Dependencies ----------------------------------------------------------
+node_modules/
+.pnpm-store/
+
+# --- Build outputs ---------------------------------------------------------
+dist/
+build/
+*.tsbuildinfo
+
+# --- Tests -----------------------------------------------------------------
+coverage/
+
+# --- Logs ------------------------------------------------------------------
+*.log
+
+# --- Local tooling ---------------------------------------------------------
+# Per-user Claude Code permissions (shared settings would go in .claude/settings.json).
+.claude/settings.local.json
+
+# --- OS / editors ----------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
