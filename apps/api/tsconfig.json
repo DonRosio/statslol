@@ -1,0 +1,8 @@
+{
+  // Node.js server: Node.js types, no DOM.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src"]
+}

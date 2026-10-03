@@ -22,6 +22,7 @@ cp .env.example .env && chmod 600 .env    # then fill in the values
 
 | Command          | What it does                                   |
 | ---------------- | ---------------------------------------------- |
+| `pnpm dev`       | Starts the API, restarted on every change      |
 | `pnpm check`     | Runs all the checks below, in order            |
 | `pnpm format`    | Formats every file with Prettier               |
 | `pnpm lint`      | Lints with ESLint, including type-aware rules  |
@@ -31,4 +32,7 @@ cp .env.example .env && chmod 600 .env    # then fill in the values
 ## Layout
 
 - `apps/`: deployable applications (API, web app)
+  - `apps/api`: REST API (Fastify) served under `/api`, e.g. `GET /api/health`.
+    Its settings come from environment variables, documented in `.env.example`:
+    it refuses to start if one is invalid.
 - `packages/`: code shared between apps; `@statslol/shared` holds what both the API and the browser use

@@ -15,3 +15,9 @@ id = "riot-api-key"
 description = "Riot Games API key"
 regex = '''RGAPI-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'''
 keywords = ["rgapi-"]
+
+# The all-zero key has the right format but cannot be a real key: the tests use it
+# as a placeholder. Any other key-shaped value is still reported.
+[[rules.allowlists]]
+description = "All-zero placeholder key used by the tests"
+regexes = ['''^RGAPI-0{8}-0{4}-0{4}-0{4}-0{12}$''']
