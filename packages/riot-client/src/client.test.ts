@@ -12,7 +12,12 @@ import {
   it,
 } from 'vitest';
 
-import { createRiotClient, type Platform, type RiotClient } from './client.ts';
+import {
+  createRiotClient,
+  type Platform,
+  type RiotCall,
+  type RiotClient,
+} from './client.ts';
 import { RiotApiError } from './errors.ts';
 
 // Valid format, but cannot be a real key (allowed in .gitleaks.toml).
@@ -375,5 +380,53 @@ describe('rate limits', () => {
       retryAfterSeconds: 30,
     });
     expect(calls).toBe(1);
+  });
+});
+
+describe('onCall', () => {
+  it('reports each request sent to Riot: endpoint, status and duration', async () => {
+    const calls: RiotCall[] = [];
+    client = createRiotClient({
+      apiKey: API_KEY,
+      timeoutMs: 100,
+      onCall: (call) => calls.push(call),
+    });
+    riotAnswers(() => HttpResponse.json(ACCOUNT));
+    await lookUp();
+    riotAnswers(() => new HttpResponse(null, { status: 404 }));
+    await lookUp();
+    riotAnswers(() => HttpResponse.error());
+    await lookUpError();
+
+    expect(calls).toMatchObject([
+      { method: 'account-v1.getByRiotId', route: 'europe', status: 200 },
+      { method: 'account-v1.getByRiotId', route: 'europe', status: 404 },
+      // No answer: Riot could not be reached.
+      { method: 'account-v1.getByRiotId', route: 'europe', status: undefined },
+    ]);
+    for (const { durationMs } of calls) {
+      expect(durationMs).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('does not report a call refused by the rate limiter, which never reaches Riot', async () => {
+    const calls: RiotCall[] = [];
+    server.use(
+      http.get(ACCOUNT_URL, () =>
+        HttpResponse.json(ACCOUNT, {
+          headers: { 'X-App-Rate-Limit': '1:10' },
+        }),
+      ),
+    );
+    client = createRiotClient({
+      apiKey: API_KEY,
+      maxQueueWaitMs: 0,
+      onCall: (call) => calls.push(call),
+    });
+
+    await lookUp();
+    expect(await lookUpError()).toMatchObject({ kind: 'rate-limited' });
+
+    expect(calls).toHaveLength(1);
   });
 });

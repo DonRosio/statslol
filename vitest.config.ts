@@ -14,6 +14,7 @@ export default defineConfig({
           name: 'db',
           root: 'apps/api',
           include: ['src/**/*.db.test.ts'],
+          setupFiles: ['vitest.db.setup.ts'],
         },
       },
     ],

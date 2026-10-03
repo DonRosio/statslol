@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import type { RedisConnection } from './cache/redis-store.ts';
 import type { DatabaseConnection } from './db/connection.ts';
 import { Secret } from './secret.ts';
 
@@ -8,6 +9,14 @@ const RIOT_API_KEY_FORMAT =
   /^RGAPI-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const MISSING = 'Missing: copy .env.example to .env and fill it in';
+
+// Port of a service the API connects to (PostgreSQL, Redis).
+const servicePortSchema = z.coerce.number().int().min(1).max(65_535);
+
+/** A password: once validated, it can only be read with reveal(). */
+const passwordSchema = z
+  .string({ error: MISSING })
+  .transform((value) => new Secret(value));
 
 // The database created by compose.yaml, and its superuser, who runs the migrations.
 const DATABASE_NAME = 'statslol';
@@ -30,22 +39,28 @@ const envSchema = z
         'Expected the format RGAPI-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
       )
       .transform((value) => new Secret(value)),
+    REDIS_HOST: z.string().default('localhost'),
+    REDIS_PORT: servicePortSchema.default(6379),
+    REDIS_PASSWORD: passwordSchema,
   })
   .transform((env) => ({
     host: env.HOST,
     port: env.PORT,
     logLevel: env.LOG_LEVEL,
     riotApiKey: env.RIOT_API_KEY,
+    redis: {
+      host: env.REDIS_HOST,
+      port: env.REDIS_PORT,
+      password: env.REDIS_PASSWORD,
+    } satisfies RedisConnection,
   }));
 
 /** Environment variables read by `pnpm db:migrate`. */
 const migrationEnvSchema = z
   .object({
     POSTGRES_HOST: z.string().default('localhost'),
-    POSTGRES_PORT: z.coerce.number().int().min(1).max(65_535).default(5432),
-    POSTGRES_PASSWORD: z
-      .string({ error: MISSING })
-      .transform((value) => new Secret(value)),
+    POSTGRES_PORT: servicePortSchema.default(5432),
+    POSTGRES_PASSWORD: passwordSchema,
   })
   .transform((env): { database: DatabaseConnection } => ({
     database: {

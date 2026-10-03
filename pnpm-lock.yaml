@@ -164,6 +164,9 @@ settings:
 
 catalogs:
   default:
+    msw:
+      specifier: ^3.0.1
+      version: 3.0.1
     zod:
       specifier: ^4.6.5
       version: 4.6.5
@@ -209,6 +212,9 @@ importers:
       '@fastify/rate-limit':
         specifier: ^11.2.0
         version: 11.2.0
+      '@redis/client':
+        specifier: ^6.3.0
+        version: 6.3.0
       '@statslol/riot-client':
         specifier: workspace:*
         version: link:../../packages/riot-client
@@ -234,6 +240,9 @@ importers:
       drizzle-kit:
         specifier: ^0.31.11
         version: 0.31.11
+      msw:
+        specifier: 'catalog:'
+        version: 3.0.1(@types/node@24.19.0)(typescript@6.0.3)(vite@8.3.1(@types/node@24.19.0))
       pino-pretty:
         specifier: ^13.1.3
         version: 13.1.3
@@ -245,7 +254,7 @@ importers:
         version: 4.6.5
     devDependencies:
       msw:
-        specifier: ^3.0.1
+        specifier: 'catalog:'
         version: 3.0.1(@types/node@24.19.0)(typescript@6.0.3)(vite@8.3.1(@types/node@24.19.0))
 
   packages/shared:
@@ -577,6 +586,18 @@ packages:
 
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
+
+  '@redis/client@6.3.0':
+    resolution: {integrity: sha512-fHrjwGCBvAANGi+TuRuwKi83sIOzgHr8eh+Uf48w3fSX7Hhrz174NrWqfJhAC2vnN0d/tfaZpdr6+o6JC3QHwg==}
+    engines: {node: '>= 20.0.0'}
+    peerDependencies:
+      '@node-rs/xxhash': ^1.1.0
+      '@opentelemetry/api': '>=1 <2'
+    peerDependenciesMeta:
+      '@node-rs/xxhash':
+        optional: true
+      '@opentelemetry/api':
+        optional: true
 
   '@rolldown/binding-android-arm-eabi@1.2.11':
     resolution: {integrity: sha512-A5kXfGKvKWWZE0TtPrfsvT+q4Y5d1QG8gGUzpYjGydM+fARM9MuX90PrXYXe0XbsDVgyxxNzHo6giCj90bsFNw==}
@@ -2015,6 +2036,8 @@ snapshots:
   '@oxc-project/types@0.151.0': {}
 
   '@pinojs/redact@0.4.0': {}
+
+  '@redis/client@6.3.0': {}
 
   '@rolldown/binding-android-arm-eabi@1.2.11':
     optional: true

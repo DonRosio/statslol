@@ -3,8 +3,16 @@ import { fastifyRateLimit } from '@fastify/rate-limit';
 import { createRiotClient, type RiotClient } from '@statslol/riot-client';
 import { fastify, type FastifyInstance } from 'fastify';
 
+import { createCache, type CacheStore } from './cache/cache.ts';
+import { createRedisStore, type RedisConnection } from './cache/redis-store.ts';
+import { cachedRiotClient } from './cache/riot-client.ts';
 import type { Config } from './config.ts';
 import { errorHandler } from './errors.ts';
+import {
+  countRiotCalls,
+  recordRiotCall,
+  RiotCallsLogController,
+} from './riot-calls.ts';
 import { healthRoutes } from './routes/health.ts';
 import { playerRoutes } from './routes/players.ts';
 import { zodSerializerCompiler, zodValidatorCompiler } from './zod.ts';
@@ -14,6 +22,8 @@ export interface AppOptions {
   readonly logStream?: { write(line: string): void };
   /** Client of the Riot API. Defaults to the real one; the tests pass a fake. */
   readonly riot?: RiotClient;
+  /** Where the cache keeps its values. Defaults to Redis; the tests pass a MemoryStore. */
+  readonly cacheStore?: CacheStore;
 }
 
 /** Creates the API without starting it: the tests send it requests with `app.inject()`. */
@@ -41,6 +51,8 @@ export function buildApp(
       },
       ...(options.logStream && { stream: options.logStream }),
     },
+    // Adds to the log line of each request the number of calls it sent to Riot.
+    logController: new RiotCallsLogController(),
   });
 
   app.setValidatorCompiler(zodValidatorCompiler);
@@ -66,12 +78,33 @@ export function buildApp(
     timeWindow: '1 minute',
   });
 
+  countRiotCalls(app);
   // The only place where the API key is revealed: the client sends it to Riot.
   const riot =
-    options.riot ?? createRiotClient({ apiKey: config.riotApiKey.reveal() });
+    options.riot ??
+    createRiotClient({
+      apiKey: config.riotApiKey.reveal(),
+      onCall: (call) => {
+        recordRiotCall(app.log, call);
+      },
+    });
+  const cache = createCache(
+    options.cacheStore ?? connectRedis(app, config.redis),
+    app.log,
+  );
 
   app.register(healthRoutes, { prefix: '/api' });
-  app.register(playerRoutes, { prefix: '/api/v1', riot });
+  app.register(playerRoutes, {
+    prefix: '/api/v1',
+    riot: cachedRiotClient(riot, cache),
+  });
 
   return app;
+}
+
+/** Connects to Redis in the background, and disconnects when the app closes. */
+function connectRedis(app: FastifyInstance, connection: RedisConnection) {
+  const store = createRedisStore(connection, app.log);
+  app.addHook('onClose', () => store.close());
+  return store;
 }

@@ -9,6 +9,7 @@ import {
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 
 import { buildApp } from '../app.ts';
+import { MemoryStore } from '../cache/memory-store.ts';
 import type { Config } from '../config.ts';
 import { Secret } from '../secret.ts';
 
@@ -17,6 +18,7 @@ const config: Config = {
   port: 0,
   logLevel: 'silent',
   riotApiKey: new Secret('RGAPI-test-key'),
+  redis: { host: 'localhost', port: 6379, password: new Secret('unused') },
 };
 
 const ACCOUNT: RiotAccount = {
@@ -68,7 +70,7 @@ function fakeRiot() {
 
 /** Sends GET /api/v1/players/<path> to an app that uses this Riot client. */
 function getPlayer(riot: RiotClient, path: string) {
-  const app = buildApp(config, { riot });
+  const app = buildApp(config, { riot, cacheStore: new MemoryStore() });
   onTestFinished(() => app.close());
   return app.inject({ method: 'GET', url: `/api/v1/players/${path}` });
 }
@@ -235,7 +237,10 @@ describe('GET /api/v1/players/:region/:name/:tag', () => {
 
 describe('limits and unexpected errors', () => {
   it('answers 429 beyond 20 lookups per minute from the same address', async () => {
-    const app = buildApp(config, { riot: fakeRiot() });
+    const app = buildApp(config, {
+      riot: fakeRiot(),
+      cacheStore: new MemoryStore(),
+    });
     onTestFinished(() => app.close());
     const lookUp = () =>
       app.inject({
@@ -264,7 +269,11 @@ describe('limits and unexpected errors', () => {
     );
     const app = buildApp(
       { ...config, logLevel: 'error' },
-      { riot, logStream: { write: (line) => lines.push(line) } },
+      {
+        riot,
+        cacheStore: new MemoryStore(),
+        logStream: { write: (line) => lines.push(line) },
+      },
     );
     onTestFinished(() => app.close());
 
@@ -283,5 +292,71 @@ describe('limits and unexpected errors', () => {
     const logs = lines.join('');
     expect(logs).toContain("reading 'puuid'");
     expect(logs).toContain('"stack":"TypeError: Cannot read properties');
+  });
+});
+
+describe('cache', () => {
+  const url = '/api/v1/players/kr/Hide%20on%20bush/KR1';
+
+  function createApp(riot: RiotClient) {
+    const app = buildApp(config, { riot, cacheStore: new MemoryStore() });
+    onTestFinished(() => app.close());
+    return app;
+  }
+
+  function expectOneCallPerEndpoint(riot: ReturnType<typeof fakeRiot>) {
+    expect(riot.getAccountByRiotId).toHaveBeenCalledTimes(1);
+    expect(riot.getSummonerByPuuid).toHaveBeenCalledTimes(1);
+    expect(riot.getLeagueEntriesByPuuid).toHaveBeenCalledTimes(1);
+  }
+
+  it('answers a player looked up again from the cache, without calling Riot', async () => {
+    const riot = fakeRiot();
+    const app = createApp(riot);
+
+    const first = await app.inject({ method: 'GET', url });
+    const second = await app.inject({ method: 'GET', url });
+
+    expect(second.statusCode).toBe(200);
+    expect(second.json()).toEqual(first.json());
+    expectOneCallPerEndpoint(riot);
+  });
+
+  it('sends a single set of calls to Riot for simultaneous lookups of a player', async () => {
+    const riot = fakeRiot();
+    const app = createApp(riot);
+
+    const responses = await Promise.all(
+      [1, 2, 3].map(() => app.inject({ method: 'GET', url })),
+    );
+
+    expect(responses.map((response) => response.statusCode)).toEqual([
+      200, 200, 200,
+    ]);
+    expectOneCallPerEndpoint(riot);
+  });
+
+  it('remembers for a while that a Riot ID belongs to no one', async () => {
+    const riot = fakeRiot();
+    riot.getAccountByRiotId.mockResolvedValue(null);
+    const app = createApp(riot);
+
+    for (let lookup = 1; lookup <= 2; lookup++) {
+      const response = await app.inject({ method: 'GET', url });
+      expect(response.statusCode).toBe(404);
+    }
+    expect(riot.getAccountByRiotId).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not keep a failure: the next lookup asks Riot again', async () => {
+    const riot = fakeRiot();
+    riot.getAccountByRiotId.mockRejectedValueOnce(
+      new RiotApiError('timeout', 'Riot did not answer'),
+    );
+    const app = createApp(riot);
+
+    expect((await app.inject({ method: 'GET', url })).statusCode).toBe(504);
+    expect((await app.inject({ method: 'GET', url })).statusCode).toBe(200);
+    expect(riot.getAccountByRiotId).toHaveBeenCalledTimes(2);
   });
 });

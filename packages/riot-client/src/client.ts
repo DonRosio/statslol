@@ -32,16 +32,17 @@ export const PLATFORMS = [
 export type Platform = (typeof PLATFORMS)[number];
 
 // Riot's answers are validated like any external input. PUUIDs end up in the URLs of
-// later calls: only the URL-safe characters they are made of are accepted.
+// later calls: only the URL-safe characters they are made of are accepted. The schemas are
+// exported so that an answer kept somewhere (e.g. in a cache) can be checked again.
 const puuidSchema = z.string().regex(/^[\w-]+$/);
 
-const accountSchema = z.object({
+export const riotAccountSchema = z.object({
   puuid: puuidSchema,
   gameName: z.string(),
   tagLine: z.string(),
 });
 
-const summonerSchema = z.object({
+export const riotSummonerSchema = z.object({
   puuid: puuidSchema,
   profileIconId: z.number().int().nonnegative(),
   summonerLevel: z.number().int().nonnegative(),
@@ -50,7 +51,7 @@ const summonerSchema = z.object({
 // Riot's vocabulary is kept as is: tier "GOLD", rank "II" (the division), queueType
 // "RANKED_SOLO_5x5"... New queues appear from time to time (e.g. RANKED_PREMADE_5x5 in
 // 2026), so these stay plain strings: callers pick the values they know.
-const leagueEntrySchema = z.object({
+export const riotLeagueEntrySchema = z.object({
   queueType: z.string(),
   tier: z.string(),
   rank: z.string(),
@@ -60,13 +61,13 @@ const leagueEntrySchema = z.object({
 });
 
 /** A Riot account: its permanent identifier (PUUID) and its current Riot ID. */
-export type RiotAccount = Readonly<z.output<typeof accountSchema>>;
+export type RiotAccount = Readonly<z.output<typeof riotAccountSchema>>;
 
 /** A player's League of Legends profile on one platform. */
-export type RiotSummoner = Readonly<z.output<typeof summonerSchema>>;
+export type RiotSummoner = Readonly<z.output<typeof riotSummonerSchema>>;
 
 /** A player's rank in one ranked queue. */
-export type RiotLeagueEntry = Readonly<z.output<typeof leagueEntrySchema>>;
+export type RiotLeagueEntry = Readonly<z.output<typeof riotLeagueEntrySchema>>;
 
 export interface RiotClientOptions {
   readonly apiKey: string;
@@ -77,6 +78,22 @@ export interface RiotClientOptions {
    * "rate-limited". Defaults to 3 seconds: someone is waiting for the page.
    */
   readonly maxQueueWaitMs?: number;
+  /**
+   * Called after each request sent to Riot (e.g. to log or count them). Calls refused by
+   * the rate limiter are not requests: they never reach Riot.
+   */
+  readonly onCall?: (call: RiotCall) => void;
+}
+
+/** A request sent to Riot. Its URL is left out: it contains player identifiers. */
+export interface RiotCall {
+  /** Riot's name for the endpoint, e.g. "summoner-v4.getByPUUID". */
+  readonly method: string;
+  /** Routing value: "europe", "euw1"... */
+  readonly route: string;
+  /** Status code of Riot's answer, undefined if none came (timeout, network failure). */
+  readonly status: number | undefined;
+  readonly durationMs: number;
 }
 
 /** A call to Riot: where it goes, and which endpoint it is (for the method limits). */
@@ -118,6 +135,7 @@ export function createRiotClient({
   apiKey,
   timeoutMs = DEFAULT_TIMEOUT_MS,
   maxQueueWaitMs = DEFAULT_MAX_QUEUE_WAIT_MS,
+  onCall,
 }: RiotClientOptions): RiotClient {
   // The key stays in this function's scope: it is not a property of the returned object,
   // so logging or serializing the client cannot reveal it.
@@ -130,6 +148,8 @@ export function createRiotClient({
   ): Promise<T | null> {
     // Waits for a free slot under Riot's rate limits (or fails at once if it is too far).
     await limiter.acquire(route, method);
+    const start = performance.now();
+    let status: number | undefined;
     try {
       const response = await fetch(
         `https://${route}.api.riotgames.com${path}`,
@@ -139,6 +159,7 @@ export function createRiotClient({
           signal: AbortSignal.timeout(timeoutMs),
         },
       );
+      status = response.status;
       // Every answer, errors included, tells the current limits and counts.
       limiter.update(route, method, response);
       if (!response.ok) {
@@ -150,6 +171,9 @@ export function createRiotClient({
       return parseAnswer(schema, await response.json());
     } catch (error) {
       throw toRiotApiError(error, timeoutMs);
+    } finally {
+      const durationMs = Math.round(performance.now() - start);
+      onCall?.({ method, route, status, durationMs });
     }
   }
 
@@ -160,7 +184,7 @@ export function createRiotClient({
         method: 'account-v1.getByRiotId',
         path: `/riot/account/v1/accounts/by-riot-id/${pathSegment(gameName)}/${pathSegment(tagLine)}`,
       };
-      return await get(request, accountSchema);
+      return await get(request, riotAccountSchema);
     },
 
     async getSummonerByPuuid(platform, puuid) {
@@ -169,7 +193,7 @@ export function createRiotClient({
         method: 'summoner-v4.getByPUUID',
         path: `/lol/summoner/v4/summoners/by-puuid/${pathSegment(puuid)}`,
       };
-      return await get(request, summonerSchema);
+      return await get(request, riotSummonerSchema);
     },
 
     async getLeagueEntriesByPuuid(platform, puuid) {
@@ -178,7 +202,7 @@ export function createRiotClient({
         method: 'league-v4.getLeagueEntriesByPUUID',
         path: `/lol/league/v4/entries/by-puuid/${pathSegment(puuid)}`,
       };
-      return (await get(request, z.array(leagueEntrySchema))) ?? [];
+      return (await get(request, z.array(riotLeagueEntrySchema))) ?? [];
     },
   };
 }

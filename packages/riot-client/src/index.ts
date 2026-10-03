@@ -1,8 +1,12 @@
 export {
   createRiotClient,
   PLATFORMS,
+  riotAccountSchema,
+  riotLeagueEntrySchema,
+  riotSummonerSchema,
   type Platform,
   type RiotAccount,
+  type RiotCall,
   type RiotClient,
   type RiotClientOptions,
   type RiotLeagueEntry,

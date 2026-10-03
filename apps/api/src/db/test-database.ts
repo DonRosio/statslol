@@ -1,18 +1,12 @@
 // Helpers for the tests that need the PostgreSQL server of compose.yaml (*.db.test.ts files,
 // run by `pnpm test:db`).
 import { randomUUID } from 'node:crypto';
-import { existsSync } from 'node:fs';
 
 import { Client, escapeIdentifier } from 'pg';
 
 import { loadMigrationConfig } from '../config.ts';
 import { Secret } from '../secret.ts';
 import { clientConfig, type DatabaseConnection } from './connection.ts';
-
-// Locally, the passwords come from .env, as for `pnpm dev`. Variables already set in the
-// environment (e.g. by the CI) take precedence.
-const ENV_FILE = new URL('../../../../.env', import.meta.url);
-if (existsSync(ENV_FILE)) process.loadEnvFile(ENV_FILE);
 
 // Created by docker/postgres/initdb.
 const APP_ROLE = 'statslol_app';

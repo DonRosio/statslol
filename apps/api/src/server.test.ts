@@ -28,7 +28,13 @@ describe('server', () => {
 
   it('serves requests, then stops cleanly on SIGTERM', async () => {
     const server = spawn(process.execPath, [serverPath], {
-      env: { HOST: '127.0.0.1', PORT: '0', RIOT_API_KEY: FAKE_RIOT_API_KEY },
+      // Redis may be unreachable or refuse this password: the API starts without its cache.
+      env: {
+        HOST: '127.0.0.1',
+        PORT: '0',
+        RIOT_API_KEY: FAKE_RIOT_API_KEY,
+        REDIS_PASSWORD: 'unused',
+      },
       stdio: ['ignore', 'pipe', 'inherit'],
     });
     onTestFinished(() => {

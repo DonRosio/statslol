@@ -51,6 +51,11 @@ the last two commands above.
     - Every answer carries security headers (helmet). Requests are limited per IP address
       (60 per minute, 20 for player lookups, none for the health check): beyond, 429.
       Unexpected errors answer a generic 500; their details only go to the logs.
+    - Riot's answers are cached in Redis: a Riot ID for 6 hours, a level or a rank for
+      5 minutes. Simultaneous lookups of a player share the same calls to Riot. Without
+      Redis, the API keeps answering, from Riot.
+    - The log line of each request gives the number of calls it sent to Riot (`riotCalls`);
+      with `LOG_LEVEL=debug`, each call is logged too.
     - `src/db/schema.ts`: tables of the PostgreSQL database (Drizzle ORM). Each change comes
       with a migration in `drizzle/`, written by `pnpm db:generate` and reviewed like code.
       The migrations run as the superuser, who owns the tables; the API connects as
@@ -59,7 +64,8 @@ the last two commands above.
   - `packages/shared`: what both the API and the browser use, e.g. the Zod schemas of a
     Riot ID and of a region, so that both validate user input with the same rules.
   - `packages/riot-client`: client of the Riot API. Server-only: it sends the API key,
-    so browser code must never import it.
+    so browser code must never import it. Its `onCall` option reports each request sent
+    to Riot (endpoint, status, duration).
     It spreads its calls to stay under Riot's rate limits, learned from Riot's answers;
     `pnpm --filter @statslol/riot-client check:rate-limits` checks it with 150 real calls
     (about 2 minutes: Riot answers 429 to none of them).
