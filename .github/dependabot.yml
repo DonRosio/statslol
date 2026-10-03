@@ -1,0 +1,16 @@
+version: 2
+updates:
+  # Keeps the SHA-pinned actions of .github/workflows up to date.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    # Same delay as pnpm's minimumReleaseAge before proposing a new release.
+    cooldown:
+      default-days: 3
+    commit-message:
+      prefix: ci
+
+  # npm dependencies are not managed here: Dependabot supports pnpm up to v10 and
+  # this repo uses pnpm 12. They are updated with `pnpm outdated` / `pnpm update`,
+  # and the weekly CI audit reports newly disclosed vulnerabilities.
