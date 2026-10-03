@@ -35,4 +35,6 @@ cp .env.example .env && chmod 600 .env    # then fill in the values
   - `apps/api`: REST API (Fastify) served under `/api`, e.g. `GET /api/health`.
     Its settings come from environment variables, documented in `.env.example`:
     it refuses to start if one is invalid.
-- `packages/`: code shared between apps; `@statslol/shared` holds what both the API and the browser use
+- `packages/`: code shared between apps
+  - `packages/shared`: what both the API and the browser use, e.g. the Zod schemas of a
+    Riot ID and of a region, so that both validate user input with the same rules.

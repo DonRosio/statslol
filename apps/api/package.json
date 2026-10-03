@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "fastify": "^5.12.5",
-    "zod": "^4.6.5"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "pino-pretty": "^13.1.3"

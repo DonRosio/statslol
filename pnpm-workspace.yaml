@@ -14,3 +14,8 @@ minimumReleaseAge: 4320
 # (e.g. it used to be published from CI with provenance and suddenly is not):
 # a typical sign of a hijacked maintainer account.
 trustPolicy: no-downgrade
+
+# Versions of the dependencies used by several packages: their package.json says
+# "catalog:" instead of a version, so the whole monorepo always uses the same one.
+catalog:
+  zod: ^4.6.5
