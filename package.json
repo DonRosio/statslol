@@ -6,14 +6,15 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "pnpm --filter @statslol/api dev",
+    "dev": "pnpm --recursive --parallel --no-bail dev",
+    "build": "pnpm --recursive build",
     "db:generate": "pnpm --filter @statslol/api db:generate",
     "db:migrate": "pnpm --filter @statslol/api db:migrate",
     "prepare": "git config core.hooksPath .githooks",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "lint": "eslint .",
+    "lint": "eslint --max-warnings 0 .",
     "typecheck": "tsc && pnpm -r typecheck",
     "test": "vitest run --project=!db",
     "test:db": "vitest run --project=db"
@@ -23,10 +24,11 @@
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.19.0",
     "eslint": "^10.11.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "prettier": "^3.9.9",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.0",
-    "vite": "^8.3.1",
+    "vite": "catalog:",
     "vitest": "^5.0.3"
   }
 }

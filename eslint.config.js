@@ -1,5 +1,6 @@
 // @ts-check
 import eslint from '@eslint/js';
+import reactHooks from 'eslint-plugin-react-hooks';
 import { defineConfig, globalIgnores } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 
@@ -17,6 +18,12 @@ export default defineConfig(
         tsconfigRootDir: import.meta.dirname,
       },
     },
+  },
+  {
+    // Rules of React (e.g. hooks called in the same order at each render, effect
+    // dependencies listed): the stable preset of the React team's plugin.
+    files: ['apps/web/**/*.{ts,tsx}'],
+    extends: [reactHooks.configs.flat.recommended],
   },
   {
     // Plain JS files (like this one) are not part of any TypeScript project.

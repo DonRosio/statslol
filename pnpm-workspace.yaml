@@ -14,6 +14,12 @@ minimumReleaseAge: 4320
 # (e.g. it used to be published from CI with provenance and suddenly is not):
 # a typical sign of a hijacked maintainer account.
 trustPolicy: no-downgrade
+trustPolicyExclude:
+  # Backport of a security fix (CVE-2022-25883) published by an npm maintainer from their
+  # own machine in July 2023, after 7.x releases published from CI with provenance. Needed
+  # by @babel/core 7 (used by eslint-plugin-react-hooks). Exact version only: any other
+  # release of semver is still checked.
+  - semver@6.3.1
 
 # Install scripts of dependencies, reviewed one by one (pnpm refuses to install while
 # a dependency with an install script is not listed here).
@@ -33,4 +39,5 @@ overrides:
 # "catalog:" instead of a version, so the whole monorepo always uses the same one.
 catalog:
   msw: ^3.0.1
+  vite: ^8.3.1
   zod: ^4.6.5

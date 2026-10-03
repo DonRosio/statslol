@@ -26,17 +26,21 @@ the last two commands above.
 
 ## Commands
 
-| Command            | What it does                                                        |
-| ------------------ | ------------------------------------------------------------------- |
-| `pnpm dev`         | Starts the API, restarted on every change                           |
-| `pnpm check`       | Runs the checks below, in order, except `test:db`                   |
-| `pnpm format`      | Formats every file with Prettier                                    |
-| `pnpm lint`        | Lints with ESLint, including type-aware rules                       |
-| `pnpm typecheck`   | Type-checks the root configs and every package                      |
-| `pnpm test`        | Runs the tests of every package with Vitest                         |
-| `pnpm test:db`     | Runs the tests that need PostgreSQL (`docker compose up` first)     |
-| `pnpm db:generate` | Writes the migration for the changes of `apps/api/src/db/schema.ts` |
-| `pnpm db:migrate`  | Applies the migrations the database has not run yet                 |
+With `pnpm dev` running, the site is at http://localhost:5173 (Ctrl+C stops both servers;
+pnpm then reports that Vite "failed with signal SIGINT": that is expected).
+
+| Command            | What it does                                                            |
+| ------------------ | ----------------------------------------------------------------------- |
+| `pnpm dev`         | Starts the API and the web app, reloaded on every change                |
+| `pnpm build`       | Builds the web app for production, in `apps/web/dist`                   |
+| `pnpm check`       | Runs the checks below, in order, except `test:db`                       |
+| `pnpm format`      | Formats every file with Prettier                                        |
+| `pnpm lint`        | Lints with ESLint (type-aware rules, rules of React); fails on warnings |
+| `pnpm typecheck`   | Type-checks the root configs and every package                          |
+| `pnpm test`        | Runs the tests of every package with Vitest                             |
+| `pnpm test:db`     | Runs the tests that need PostgreSQL (`docker compose up` first)         |
+| `pnpm db:generate` | Writes the migration for the changes of `apps/api/src/db/schema.ts`     |
+| `pnpm db:migrate`  | Applies the migrations the database has not run yet                     |
 
 ## Layout
 
@@ -68,6 +72,14 @@ the last two commands above.
       with a migration in `drizzle/`, written by `pnpm db:generate` and reviewed like code.
       The migrations run as the superuser, who owns the tables; the API connects as
       `statslol_app`, which can only read and write rows.
+  - `apps/web`: the website, a single-page app (React, Vite). React Router picks the page
+    of each URL; TanStack Query sends the requests to the API and caches the answers, which
+    are checked against the Zod schemas of `packages/shared`. In development, the Vite
+    server forwards `/api/...` to the API (port 3000), so the page and the API share the
+    same origin, as they will in production.
+    - `/`: home page; for now it shows whether the API answers (`/api/health`).
+    - Tests run in jsdom (a browser simulated in Node.js) with Testing Library; MSW plays
+      the API.
 - `packages/`: code shared between apps
   - `packages/shared`: what both the API and the browser use, e.g. the Zod schemas of a
     Riot ID and of a region, so that both validate user input with the same rules.

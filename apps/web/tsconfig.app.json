@@ -1,0 +1,14 @@
+{
+  // Browser code: DOM types, JSX, and what Vite adds (e.g. importing a CSS file).
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+    // Imports are resolved by Vite (a bundler), not by Node.js.
+    "module": "Preserve",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "tsBuildInfoFile": "node_modules/.tmp/tsconfig.app.tsbuildinfo"
+  },
+  "include": ["src"]
+}

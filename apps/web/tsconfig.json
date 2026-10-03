@@ -1,0 +1,10 @@
+{
+  // Two separate programs: the code that runs in the browser (DOM, no Node.js) and the
+  // Vite/Vitest configs, which run in Node.js. Vite's types bring Node.js globals with them:
+  // in a single program, browser code could use `process` or `Buffer` without an error.
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}

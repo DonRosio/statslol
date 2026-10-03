@@ -1,0 +1,45 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+body {
+  margin: 0;
+}
+
+.site-header {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.site-name {
+  font-weight: bold;
+  text-decoration: none;
+  color: inherit;
+}
+
+main {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+/* A colored dot before the text: grey while checking, green when up, red when down. */
+.api-status::before {
+  content: '';
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  margin-right: 0.5em;
+  border-radius: 50%;
+  background: grey;
+}
+
+.api-status[data-status='success']::before {
+  background: #2e9d4f;
+}
+
+.api-status[data-status='error']::before {
+  background: #d93a3a;
+}

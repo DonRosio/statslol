@@ -1,3 +1,4 @@
+export { healthSchema, type Health } from './health.ts';
 export {
   MATCHES_PER_PAGE,
   matchHistorySchema,
