@@ -45,3 +45,6 @@ cp .env.example .env && chmod 600 .env    # then fill in the values
     Riot ID and of a region, so that both validate user input with the same rules.
   - `packages/riot-client`: client of the Riot API. Server-only: it sends the API key,
     so browser code must never import it.
+    It spreads its calls to stay under Riot's rate limits, learned from Riot's answers;
+    `pnpm --filter @statslol/riot-client check:rate-limits` checks it with 150 real calls
+    (about 2 minutes: Riot answers 429 to none of them).

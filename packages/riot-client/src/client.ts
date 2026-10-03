@@ -1,12 +1,14 @@
 import { z } from 'zod';
 
 import { RiotApiError } from './errors.ts';
+import { parseRetryAfterSeconds, RateLimiter } from './rate-limiter.ts';
 
 // Account data is global: the americas, asia and europe clusters all answer for any
 // player, and Riot recommends the closest one. Our server is in Europe.
-const ACCOUNT_API = 'https://europe.api.riotgames.com/riot/account/v1';
+const ACCOUNT_ROUTE = 'europe';
 
 const DEFAULT_TIMEOUT_MS = 5000;
+const DEFAULT_MAX_QUEUE_WAIT_MS = 3000;
 
 /** Riot's platforms: one per League of Legends server, each with its own API host. */
 export const PLATFORMS = [
@@ -70,6 +72,20 @@ export interface RiotClientOptions {
   readonly apiKey: string;
   /** How long to wait for Riot's answer before giving up. Defaults to 5 seconds. */
   readonly timeoutMs?: number;
+  /**
+   * Longest wait for a free slot under Riot's rate limits, after which a call fails as
+   * "rate-limited". Defaults to 3 seconds: someone is waiting for the page.
+   */
+  readonly maxQueueWaitMs?: number;
+}
+
+/** A call to Riot: where it goes, and which endpoint it is (for the method limits). */
+interface RiotRequest {
+  /** Routing value, which is also the start of the host name: "europe", "euw1"... */
+  readonly route: string;
+  /** Riot's name for the endpoint, e.g. "summoner-v4.getByPUUID". */
+  readonly method: string;
+  readonly path: string;
 }
 
 export interface RiotClient {
@@ -101,18 +117,30 @@ export interface RiotClient {
 export function createRiotClient({
   apiKey,
   timeoutMs = DEFAULT_TIMEOUT_MS,
+  maxQueueWaitMs = DEFAULT_MAX_QUEUE_WAIT_MS,
 }: RiotClientOptions): RiotClient {
   // The key stays in this function's scope: it is not a property of the returned object,
   // so logging or serializing the client cannot reveal it.
+  const limiter = new RateLimiter({ maxWaitMs: maxQueueWaitMs });
 
   /** Sends a GET request to Riot. Returns null when Riot answers 404 (nothing found). */
-  async function get<T>(url: string, schema: z.ZodType<T>): Promise<T | null> {
+  async function get<T>(
+    { route, method, path }: RiotRequest,
+    schema: z.ZodType<T>,
+  ): Promise<T | null> {
+    // Waits for a free slot under Riot's rate limits (or fails at once if it is too far).
+    await limiter.acquire(route, method);
     try {
-      const response = await fetch(url, {
-        headers: { 'X-Riot-Token': apiKey },
-        // One deadline for the whole exchange, including reading the body.
-        signal: AbortSignal.timeout(timeoutMs),
-      });
+      const response = await fetch(
+        `https://${route}.api.riotgames.com${path}`,
+        {
+          headers: { 'X-Riot-Token': apiKey },
+          // One deadline for the whole exchange, including reading the body.
+          signal: AbortSignal.timeout(timeoutMs),
+        },
+      );
+      // Every answer, errors included, tells the current limits and counts.
+      limiter.update(route, method, response);
       if (!response.ok) {
         // The body of an error is not used: discard it to free the connection.
         await response.body?.cancel();
@@ -127,35 +155,44 @@ export function createRiotClient({
 
   return {
     async getAccountByRiotId({ gameName, tagLine }) {
-      const path = `/accounts/by-riot-id/${pathSegment(gameName)}/${pathSegment(tagLine)}`;
-      return await get(ACCOUNT_API + path, accountSchema);
+      const request = {
+        route: ACCOUNT_ROUTE,
+        method: 'account-v1.getByRiotId',
+        path: `/riot/account/v1/accounts/by-riot-id/${pathSegment(gameName)}/${pathSegment(tagLine)}`,
+      };
+      return await get(request, accountSchema);
     },
 
     async getSummonerByPuuid(platform, puuid) {
-      const path = `/lol/summoner/v4/summoners/by-puuid/${pathSegment(puuid)}`;
-      return await get(platformApi(platform) + path, summonerSchema);
+      const request = {
+        route: checkPlatform(platform),
+        method: 'summoner-v4.getByPUUID',
+        path: `/lol/summoner/v4/summoners/by-puuid/${pathSegment(puuid)}`,
+      };
+      return await get(request, summonerSchema);
     },
 
     async getLeagueEntriesByPuuid(platform, puuid) {
-      const path = `/lol/league/v4/entries/by-puuid/${pathSegment(puuid)}`;
-      const entries = await get(
-        platformApi(platform) + path,
-        z.array(leagueEntrySchema),
-      );
-      return entries ?? [];
+      const request = {
+        route: checkPlatform(platform),
+        method: 'league-v4.getLeagueEntriesByPUUID',
+        path: `/lol/league/v4/entries/by-puuid/${pathSegment(puuid)}`,
+      };
+      return (await get(request, z.array(leagueEntrySchema))) ?? [];
     },
   };
 }
 
 /**
- * The API host of a platform. The key is sent to this host: it is never built from a value
- * outside the known list, even if a caller bypasses the types (e.g. with `as Platform`).
+ * Checks a platform before it becomes a host name. The key is sent to that host: it is
+ * never built from a value outside the known list, even if a caller bypasses the types
+ * (e.g. with `as Platform`).
  */
-function platformApi(platform: Platform): string {
+function checkPlatform(platform: Platform): Platform {
   if (!PLATFORMS.includes(platform)) {
     throw new RangeError(`Unknown Riot platform: "${platform}"`);
   }
-  return `https://${platform}.api.riotgames.com`;
+  return platform;
 }
 
 /**
@@ -175,7 +212,9 @@ function errorForStatus(response: Response): RiotApiError {
   if (status === 429) {
     return new RiotApiError('rate-limited', 'Riot API rate limit exceeded', {
       status,
-      retryAfterSeconds: parseRetryAfter(response.headers.get('Retry-After')),
+      retryAfterSeconds: parseRetryAfterSeconds(
+        response.headers.get('Retry-After'),
+      ),
     });
   }
   if (status === 401 || status === 403) {
@@ -198,11 +237,6 @@ function errorForStatus(response: Response): RiotApiError {
     `Unexpected answer from Riot (${String(status)})`,
     { status },
   );
-}
-
-/** Riot gives the number of seconds to wait. */
-function parseRetryAfter(value: string | null): number | undefined {
-  return value !== null && /^\d+$/.test(value) ? Number(value) : undefined;
 }
 
 function parseAnswer<T>(schema: z.ZodType<T>, body: unknown): T {

@@ -2,9 +2,17 @@ import { inspect } from 'node:util';
 
 import { delay, http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from 'vitest';
 
-import { createRiotClient, type Platform } from './client.ts';
+import { createRiotClient, type Platform, type RiotClient } from './client.ts';
 import { RiotApiError } from './errors.ts';
 
 // Valid format, but cannot be a real key (allowed in .gitleaks.toml).
@@ -33,7 +41,15 @@ afterAll(() => {
   server.close();
 });
 
-const client = createRiotClient({ apiKey: API_KEY, timeoutMs: 100 });
+// A new client for each test: its rate limiter must not carry over from one test to the next
+// (e.g. a 429 stops the following calls).
+function newClient() {
+  return createRiotClient({ apiKey: API_KEY, timeoutMs: 100 });
+}
+let client: RiotClient;
+beforeEach(() => {
+  client = newClient();
+});
 
 function lookUp() {
   return client.getAccountByRiotId({
@@ -209,6 +225,7 @@ describe('getAccountByRiotId', () => {
       () => HttpResponse.error(),
     ];
     for (const respond of failures) {
+      client = newClient();
       riotAnswers(respond);
       // inspect() shows everything: message, stack, properties and cause.
       expect(inspect(await lookUpError(), { depth: 5 })).not.toContain(API_KEY);
@@ -313,5 +330,50 @@ describe('getLeagueEntriesByPuuid', () => {
     await expect(
       client.getLeagueEntriesByPuuid('kr', ACCOUNT.puuid),
     ).rejects.toMatchObject({ kind: 'unexpected-response' });
+  });
+});
+
+describe('rate limits', () => {
+  it('follows the limits announced by Riot, and refuses a call that would wait too long', async () => {
+    let calls = 0;
+    server.use(
+      http.get(ACCOUNT_URL, () => {
+        calls++;
+        return HttpResponse.json(ACCOUNT, {
+          headers: { 'X-App-Rate-Limit': '1:10' },
+        });
+      }),
+    );
+    client = createRiotClient({ apiKey: API_KEY, maxQueueWaitMs: 0 });
+
+    await expect(lookUp()).resolves.toEqual(ACCOUNT);
+    // One call per 10 seconds: the next one is refused without being sent.
+    expect(await lookUpError()).toMatchObject({
+      kind: 'rate-limited',
+      status: undefined,
+      retryAfterSeconds: 11,
+    });
+    expect(calls).toBe(1);
+  });
+
+  it('stops calling Riot after a 429, until the delay Riot asked for is over', async () => {
+    let calls = 0;
+    server.use(
+      http.get(ACCOUNT_URL, () => {
+        calls++;
+        return new HttpResponse(null, {
+          status: 429,
+          headers: { 'Retry-After': '30', 'X-Rate-Limit-Type': 'application' },
+        });
+      }),
+    );
+
+    expect(await lookUpError()).toMatchObject({ status: 429 });
+    expect(await lookUpError()).toMatchObject({
+      kind: 'rate-limited',
+      status: undefined,
+      retryAfterSeconds: 30,
+    });
+    expect(calls).toBe(1);
   });
 });
