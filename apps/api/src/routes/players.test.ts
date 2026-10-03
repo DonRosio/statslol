@@ -232,3 +232,56 @@ describe('GET /api/v1/players/:region/:name/:tag', () => {
     expect(response.statusCode).toBe(502);
   });
 });
+
+describe('limits and unexpected errors', () => {
+  it('answers 429 beyond 20 lookups per minute from the same address', async () => {
+    const app = buildApp(config, { riot: fakeRiot() });
+    onTestFinished(() => app.close());
+    const lookUp = () =>
+      app.inject({
+        method: 'GET',
+        url: '/api/v1/players/kr/Hide%20on%20bush/KR1',
+      });
+
+    for (let request = 1; request <= 20; request++) {
+      expect((await lookUp()).statusCode).toBe(200);
+    }
+    const response = await lookUp();
+
+    expect(response.statusCode).toBe(429);
+    expect(response.headers['retry-after']).toBe('60');
+    expect(response.json()).toMatchObject({
+      statusCode: 429,
+      error: 'Too Many Requests',
+    });
+  });
+
+  it('answers an unexpected error without its details, which go to the logs', async () => {
+    const lines: string[] = [];
+    const riot = fakeRiot();
+    riot.getAccountByRiotId.mockRejectedValue(
+      new TypeError("Cannot read properties of undefined (reading 'puuid')"),
+    );
+    const app = buildApp(
+      { ...config, logLevel: 'error' },
+      { riot, logStream: { write: (line) => lines.push(line) } },
+    );
+    onTestFinished(() => app.close());
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/players/kr/Hide%20on%20bush/KR1',
+    });
+
+    expect(response.statusCode).toBe(500);
+    expect(response.json()).toEqual({
+      statusCode: 500,
+      error: 'Internal Server Error',
+      message: 'An unexpected error occurred',
+    });
+    // The message and the stack trace are in the logs, for us.
+    const logs = lines.join('');
+    expect(logs).toContain("reading 'puuid'");
+    expect(logs).toContain('"stack":"TypeError: Cannot read properties');
+  });
+});

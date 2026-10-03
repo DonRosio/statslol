@@ -43,16 +43,42 @@ const RIOT_FAILURES: Record<
 };
 
 /**
- * Answers the Riot API failures. Any other error is passed on (by throwing it again) to
- * Fastify's default handler: 400 for an invalid request, `statusCode` for an HttpError...
+ * Answers the errors of every route:
+ * - client errors (invalid request, 404, 429...) and HttpErrors keep their message, which is
+ *   meant for the client: Fastify's default handler answers them (we pass them on by
+ *   throwing them again);
+ * - a failure of the Riot API gets a status code that says whether to try again later;
+ * - anything else is a bug or an unexpected failure: its details (message, stack trace)
+ *   go to the logs, never to the client.
  */
 export function errorHandler(
   error: FastifyError,
   request: FastifyRequest,
   reply: FastifyReply,
 ) {
-  if (!(error instanceof RiotApiError)) throw error;
+  if (error instanceof RiotApiError) {
+    return answerRiotFailure(error, request, reply);
+  }
 
+  const statusCode =
+    error.statusCode !== undefined && error.statusCode >= 400
+      ? error.statusCode
+      : 500;
+  if (error instanceof HttpError || statusCode < 500) throw error;
+
+  request.log.error({ err: error }, 'Request failed');
+  return reply.code(statusCode).send({
+    statusCode,
+    error: STATUS_CODES[statusCode],
+    message: 'An unexpected error occurred',
+  });
+}
+
+function answerRiotFailure(
+  error: RiotApiError,
+  request: FastifyRequest,
+  reply: FastifyReply,
+) {
   // A refused key or an unknown format needs us to act; the other failures are temporary.
   const needsAction =
     error.kind === 'unauthorized' || error.kind === 'unexpected-response';

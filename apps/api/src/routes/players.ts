@@ -34,6 +34,10 @@ export const playerRoutes: FastifyPluginCallback<PlayerRoutesOptions> = (
         params: playerParamsSchema,
         response: { 200: playerProfileSchema },
       },
+      // Each lookup costs 3 calls to Riot. 20 per minute lets a player check a whole game
+      // lobby in one go, while a script cannot flood the API. Protecting our Riot quota
+      // itself is the job of the Riot client's rate limiter and of the cache (steps 2.1, 2.3).
+      config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
     },
     async (request) => {
       const { region, name, tag } = request.params;

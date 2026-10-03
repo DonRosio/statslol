@@ -1,3 +1,5 @@
+import { fastifyHelmet } from '@fastify/helmet';
+import { fastifyRateLimit } from '@fastify/rate-limit';
 import { createRiotClient, type RiotClient } from '@statslol/riot-client';
 import { fastify, type FastifyInstance } from 'fastify';
 
@@ -44,6 +46,25 @@ export function buildApp(
   app.setValidatorCompiler(zodValidatorCompiler);
   app.setSerializerCompiler(zodSerializerCompiler);
   app.setErrorHandler(errorHandler);
+
+  // Security headers on every answer, errors included. The API only answers JSON: its
+  // Content-Security-Policy forbids loading, running or embedding anything from it.
+  app.register(fastifyHelmet, {
+    contentSecurityPolicy: {
+      useDefaults: false,
+      directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] },
+    },
+    frameguard: { action: 'deny' },
+  });
+
+  // Limits the requests of each client IP address (for IPv6, of each /64 network, which
+  // a single subscriber controls entirely). Every route gets this limit unless it sets its
+  // own with `config.rateLimit`, so a new route is never left without one.
+  app.register(fastifyRateLimit, {
+    global: true,
+    max: 60,
+    timeWindow: '1 minute',
+  });
 
   // The only place where the API key is revealed: the client sends it to Riot.
   const riot =

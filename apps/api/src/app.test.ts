@@ -69,3 +69,41 @@ describe('logs', () => {
     expect(output.match(/\[REDACTED\]/g)).toHaveLength(4);
   });
 });
+
+describe('security', () => {
+  it.each([
+    ['a normal answer', '/api/health', 200],
+    ['an error', '/does-not-exist', 404],
+  ])('sends the security headers with %s', async (_case, url, statusCode) => {
+    const response = await createApp().inject({ method: 'GET', url });
+
+    expect(response.statusCode).toBe(statusCode);
+    expect(response.headers).toMatchObject({
+      'content-security-policy': "default-src 'none';frame-ancestors 'none'",
+      'x-content-type-options': 'nosniff',
+      'x-frame-options': 'DENY',
+      'referrer-policy': 'no-referrer',
+      'cross-origin-resource-policy': 'same-origin',
+      'strict-transport-security': 'max-age=31536000; includeSubDomains',
+    });
+  });
+
+  it('does not let other websites read its answers (no CORS)', async () => {
+    const response = await createApp().inject({
+      method: 'GET',
+      url: '/api/health',
+      headers: { origin: 'https://attacker.example' },
+    });
+
+    expect(response.headers).not.toHaveProperty('access-control-allow-origin');
+  });
+
+  it('never rate limits the health check', async () => {
+    const app = createApp();
+
+    for (let request = 1; request <= 100; request++) {
+      const response = await app.inject({ method: 'GET', url: '/api/health' });
+      expect(response.statusCode).toBe(200);
+    }
+  });
+});

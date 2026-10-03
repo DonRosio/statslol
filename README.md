@@ -37,6 +37,9 @@ cp .env.example .env && chmod 600 .env    # then fill in the values
     - `GET /api/health`: answers 200 while the API is up.
     - `GET /api/v1/players/:region/:name/:tag`: profile of a player, e.g.
       `/api/v1/players/euw/Hide%20on%20bush/KR1` (level, icon, solo and flex ranks).
+    - Every answer carries security headers (helmet). Requests are limited per IP address
+      (60 per minute, 20 for player lookups, none for the health check): beyond, 429.
+      Unexpected errors answer a generic 500; their details only go to the logs.
 - `packages/`: code shared between apps
   - `packages/shared`: what both the API and the browser use, e.g. the Zod schemas of a
     Riot ID and of a region, so that both validate user input with the same rules.
