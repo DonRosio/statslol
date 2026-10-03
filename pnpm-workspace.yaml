@@ -15,6 +15,20 @@ minimumReleaseAge: 4320
 # a typical sign of a hijacked maintainer account.
 trustPolicy: no-downgrade
 
+# Install scripts of dependencies, reviewed one by one (pnpm refuses to install while
+# a dependency with an install script is not listed here).
+allowBuilds:
+  # Its script only checks its native binary and swaps a launcher for speed: the
+  # JavaScript API used by drizzle-kit works without it.
+  esbuild: false
+
+overrides:
+  # drizzle-kit 0.31 bundles the code it needs from tsx, but still lists these two
+  # packages, which it never loads. Removing them drops two extra versions of esbuild,
+  # one of them (0.18) with a known vulnerability (GHSA-67mh-4wv8-2f99).
+  'drizzle-kit@0.31>@esbuild-kit/esm-loader': '-'
+  'drizzle-kit@0.31>tsx': '-'
+
 # Versions of the dependencies used by several packages: their package.json says
 # "catalog:" instead of a version, so the whole monorepo always uses the same one.
 catalog:

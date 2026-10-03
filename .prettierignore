@@ -1,2 +1,4 @@
 # Files listed in .gitignore are already skipped.
 pnpm-lock.yaml
+# Written by drizzle-kit, which rewrites them at each `pnpm db:generate`.
+apps/api/drizzle/meta/

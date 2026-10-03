@@ -1,0 +1,77 @@
+# Services the API needs during development: PostgreSQL (stored data) and Redis (cache).
+#   docker compose up --detach --wait   starts them in the background, waits until they are ready
+#   docker compose down                 stops them (the data stays in the postgres-data volume)
+#   docker compose down --volumes       stops them and deletes the data
+# Secrets come from .env (see .env.example), never from this file. .env is only used to fill in
+# the ${...} below: each container receives the variables listed in its `environment`, no others
+# (the Riot API key stays out of them).
+name: statslol
+
+services:
+  postgres:
+    # Pinned by digest (like the actions of the CI): the tag alone could be moved to other
+    # contents. Dependabot proposes the updates.
+    image: postgres:18.6-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+    environment:
+      POSTGRES_DB: statslol
+      # Password of the superuser "postgres": creates the database, runs the migrations.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set it in .env, see .env.example}
+      # Read by docker/postgres/initdb, which creates the role used by the API.
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?set it in .env, see .env.example}
+      # Text is sorted and compared with PostgreSQL's own Unicode rules ("builtin" provider)
+      # rather than the operating system's: those can change when the image is updated, which
+      # silently corrupts the indexes on text columns.
+      POSTGRES_INITDB_ARGS: --locale-provider=builtin --locale=C.UTF-8
+    ports:
+      # 127.0.0.1: only reachable from this machine. Docker opens published ports with its own
+      # firewall rules, which bypass ufw: "5432:5432" would expose the database to the network.
+      - 127.0.0.1:5432:5432
+    volumes:
+      # Since PostgreSQL 18, the image keeps its data under /var/lib/postgresql/18/docker.
+      - postgres-data:/var/lib/postgresql
+      # Scripts run once, when the database is created (empty volume).
+      - ./docker/postgres/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # Over TCP on purpose: while the creation scripts run, the server only listens on its
+      # Unix socket, so the database is not reported ready before they are done.
+      test:
+        - CMD
+        - pg_isready
+        - --host=127.0.0.1
+        - --username=postgres
+        - --dbname=statslol
+      # Every second while it starts, then every 30 seconds.
+      start_period: 30s
+      start_interval: 1s
+
+  redis:
+    image: redis:8.10.2-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+    # Starts Redis directly, as the unprivileged user "redis". The image's start script would
+    # also load the modules it ships (search, JSON, time series...): a cache does not need them.
+    user: redis
+    entrypoint: [redis-server]
+    command:
+      - --requirepass
+      - ${REDIS_PASSWORD:?set it in .env, see .env.example}
+      # A cache: nothing is saved to disk, Redis starts empty.
+      - --save
+      - ''
+      - --appendonly
+      - 'no'
+      # When full, it evicts the keys used least recently instead of refusing new ones.
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - allkeys-lru
+    environment:
+      # Password used by redis-cli (the health check below).
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
+    ports:
+      - 127.0.0.1:6379:6379
+    healthcheck:
+      test: [CMD-SHELL, redis-cli ping | grep -q PONG]
+      start_period: 30s
+      start_interval: 1s
+
+volumes:
+  postgres-data:

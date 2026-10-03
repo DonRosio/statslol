@@ -39,6 +39,40 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
 
+  database:
+    name: Database (migrations, privileges)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      # Fails when a change of the schema comes without its migration: drizzle-kit would
+      # write a new one.
+      - name: Check that the migrations match the schema
+        run: |
+          pnpm db:generate
+          git status --porcelain
+          test -z "$(git status --porcelain)"
+      # New random passwords for each run: compose.yaml and the tests read them from the
+      # environment. add-mask hides them if they ever appear in the logs.
+      - name: Generate the passwords
+        run: |
+          for name in POSTGRES_PASSWORD POSTGRES_APP_PASSWORD REDIS_PASSWORD; do
+            value="$(openssl rand -hex 32)"
+            echo "::add-mask::$value"
+            echo "$name=$value" >> "$GITHUB_ENV"
+          done
+      - run: docker compose up --detach --wait
+      # The migrations apply to an empty database.
+      - run: pnpm db:migrate
+      - run: pnpm test:db
+
   audit:
     name: Dependency audit
     runs-on: ubuntu-24.04

@@ -11,6 +11,21 @@ updates:
     commit-message:
       prefix: ci
 
+  # Keeps the digest-pinned images of compose.yaml up to date.
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 3
+    ignore:
+      # A new major version of PostgreSQL cannot read the data of the previous one: the
+      # upgrade is done by hand (dump and restore), not by merging a pull request.
+      - dependency-name: postgres
+        update-types: ['version-update:semver-major']
+    commit-message:
+      prefix: build
+
   # npm dependencies are not managed here: Dependabot supports pnpm up to v10 and
   # this repo uses pnpm 12. They are updated with `pnpm outdated` / `pnpm update`,
   # and the weekly CI audit reports newly disclosed vulnerabilities.

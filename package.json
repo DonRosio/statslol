@@ -7,13 +7,16 @@
   },
   "scripts": {
     "dev": "pnpm --filter @statslol/api dev",
+    "db:generate": "pnpm --filter @statslol/api db:generate",
+    "db:migrate": "pnpm --filter @statslol/api db:migrate",
     "prepare": "git config core.hooksPath .githooks",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "typecheck": "tsc && pnpm -r typecheck",
-    "test": "vitest run"
+    "test": "vitest run --project=!db",
+    "test:db": "vitest run --project=db"
   },
   "packageManager": "pnpm@12.8.1+sha512.f64ba907507f5ceafe06c8d38e6052d0179444580ec1279ddd5bfc11cb48aa8a2644b66598e07e761da84872a9fc57d5f902b87fa49d024198d558612aabbe45",
   "devDependencies": {

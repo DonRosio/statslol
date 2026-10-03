@@ -1,10 +1,17 @@
 import { z } from 'zod';
 
+import type { DatabaseConnection } from './db/connection.ts';
 import { Secret } from './secret.ts';
 
 // Development and production keys share this format.
 const RIOT_API_KEY_FORMAT =
   /^RGAPI-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const MISSING = 'Missing: copy .env.example to .env and fill it in';
+
+// The database created by compose.yaml, and its superuser, who runs the migrations.
+const DATABASE_NAME = 'statslol';
+const DATABASE_SUPERUSER = 'postgres';
 
 /** Environment variables read by the API: validation rules and default values. */
 const envSchema = z
@@ -17,7 +24,7 @@ const envSchema = z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),
     RIOT_API_KEY: z
-      .string({ error: 'Missing: copy .env.example to .env and fill it in' })
+      .string({ error: MISSING })
       .regex(
         RIOT_API_KEY_FORMAT,
         'Expected the format RGAPI-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
@@ -31,24 +38,54 @@ const envSchema = z
     riotApiKey: env.RIOT_API_KEY,
   }));
 
+/** Environment variables read by `pnpm db:migrate`. */
+const migrationEnvSchema = z
+  .object({
+    POSTGRES_HOST: z.string().default('localhost'),
+    POSTGRES_PORT: z.coerce.number().int().min(1).max(65_535).default(5432),
+    POSTGRES_PASSWORD: z
+      .string({ error: MISSING })
+      .transform((value) => new Secret(value)),
+  })
+  .transform((env): { database: DatabaseConnection } => ({
+    database: {
+      host: env.POSTGRES_HOST,
+      port: env.POSTGRES_PORT,
+      database: DATABASE_NAME,
+      user: DATABASE_SUPERUSER,
+      password: env.POSTGRES_PASSWORD,
+    },
+  }));
+
 export type Config = Readonly<z.output<typeof envSchema>>;
 
-export type ConfigResult =
-  | { readonly success: true; readonly config: Config }
+export type MigrationConfig = Readonly<z.output<typeof migrationEnvSchema>>;
+
+export type ConfigResult<T> =
+  | { readonly success: true; readonly config: T }
   | { readonly success: false; readonly error: string };
 
+type Env = Readonly<Record<string, string | undefined>>;
+
 /**
- * Validates the environment variables and turns them into a typed configuration.
+ * Validates the environment variables of the API and turns them into a typed configuration.
  * On failure, `error` lists every invalid variable, never its value (it may be a secret).
  */
-export function loadConfig(
-  env: Readonly<Record<string, string | undefined>>,
-): ConfigResult {
+export function loadConfig(env: Env): ConfigResult<Config> {
+  return parseEnv(envSchema, env);
+}
+
+/** Same as loadConfig, for the variables of `pnpm db:migrate`. */
+export function loadMigrationConfig(env: Env): ConfigResult<MigrationConfig> {
+  return parseEnv(migrationEnvSchema, env);
+}
+
+function parseEnv<T>(schema: z.ZodType<T>, env: Env): ConfigResult<T> {
   // An empty variable (e.g. "PORT=" left in .env) counts as not set.
   const setVariables = Object.fromEntries(
     Object.entries(env).filter(([, value]) => value !== ''),
   );
-  const result = envSchema.safeParse(setVariables);
+  const result = schema.safeParse(setVariables);
   return result.success
     ? { success: true, config: result.data }
     : { success: false, error: z.prettifyError(result.error) };
