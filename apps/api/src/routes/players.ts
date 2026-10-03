@@ -1,9 +1,7 @@
 import {
-  gameNameSchema,
   matchHistorySchema,
+  playerParamsSchema,
   playerProfileSchema,
-  regionSchema,
-  tagLineSchema,
 } from '@statslol/shared';
 import type { FastifyPluginCallback } from 'fastify';
 import { z } from 'zod';
@@ -21,12 +19,6 @@ export interface PlayerRoutesOptions {
   readonly matchHistory: MatchHistoryService;
   readonly cache: Cache;
 }
-
-const playerParamsSchema = z.object({
-  region: regionSchema,
-  name: gameNameSchema,
-  tag: tagLineSchema,
-});
 
 const matchHistoryQuerySchema = z.object({
   // Number of matches to skip, from the most recent: the `nextStart` of the previous page.

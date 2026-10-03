@@ -19,6 +19,16 @@ body {
   color: inherit;
 }
 
+/* Hidden on screen, still read by screen readers (e.g. the labels of the search form). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 main {
   max-width: 60rem;
   margin: 0 auto;
@@ -42,4 +52,26 @@ main {
 
 .api-status[data-status='error']::before {
   background: #d93a3a;
+}
+
+.search-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1.5rem 0;
+}
+
+.search-form input {
+  flex: 1 1 14rem;
+}
+
+.search-form :is(select, input, button) {
+  padding: 0.5rem;
+  font: inherit;
+}
+
+.search-error {
+  flex-basis: 100%;
+  margin: 0;
+  color: #d93a3a;
 }

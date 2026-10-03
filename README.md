@@ -77,12 +77,19 @@ pnpm then reports that Vite "failed with signal SIGINT": that is expected).
     are checked against the Zod schemas of `packages/shared`. In development, the Vite
     server forwards `/api/...` to the API (port 3000), so the page and the API share the
     same origin, as they will in production.
-    - `/`: home page; for now it shows whether the API answers (`/api/health`).
+    - `/`: home page, with the search form: a region and a Riot ID typed in one piece
+      (`Hide on bush#KR1`). The Riot ID is checked with the rules of the API (schemas of
+      `packages/shared`): an invalid one is reported at once, without any request. Also
+      shows whether the API answers (`/api/health`).
+    - `/players/:region/:name/:tag`: profile page of a player, e.g.
+      `/players/kr/Hide%20on%20bush/KR1` (for now, only whose profile it is). A URL the API
+      would refuse (unknown region, invalid name or tag) shows the "not found" page.
     - Tests run in jsdom (a browser simulated in Node.js) with Testing Library; MSW plays
       the API.
 - `packages/`: code shared between apps
   - `packages/shared`: what both the API and the browser use, e.g. the Zod schemas of a
-    Riot ID and of a region, so that both validate user input with the same rules.
+    Riot ID, of a region and of the parts of a player URL, so that both validate user
+    input with the same rules.
   - `packages/riot-client`: client of the Riot API. Server-only: it sends the API key,
     so browser code must never import it. Its `onCall` option reports each request sent
     to Riot (endpoint, status, duration).

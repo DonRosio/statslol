@@ -8,6 +8,7 @@ export {
   type MatchResult,
   type MatchSummary,
 } from './match.ts';
+export { playerParamsSchema, type PlayerParams } from './player-params.ts';
 export {
   divisionSchema,
   playerProfileSchema,
