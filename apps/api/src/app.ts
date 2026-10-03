@@ -1,11 +1,17 @@
+import { createRiotClient, type RiotClient } from '@statslol/riot-client';
 import { fastify, type FastifyInstance } from 'fastify';
 
 import type { Config } from './config.ts';
+import { errorHandler } from './errors.ts';
 import { healthRoutes } from './routes/health.ts';
+import { playerRoutes } from './routes/players.ts';
+import { zodSerializerCompiler, zodValidatorCompiler } from './zod.ts';
 
 export interface AppOptions {
   /** Where log lines (one JSON object per line) are written. Defaults to stdout. */
   readonly logStream?: { write(line: string): void };
+  /** Client of the Riot API. Defaults to the real one; the tests pass a fake. */
+  readonly riot?: RiotClient;
 }
 
 /** Creates the API without starting it: the tests send it requests with `app.inject()`. */
@@ -35,7 +41,16 @@ export function buildApp(
     },
   });
 
+  app.setValidatorCompiler(zodValidatorCompiler);
+  app.setSerializerCompiler(zodSerializerCompiler);
+  app.setErrorHandler(errorHandler);
+
+  // The only place where the API key is revealed: the client sends it to Riot.
+  const riot =
+    options.riot ?? createRiotClient({ apiKey: config.riotApiKey.reveal() });
+
   app.register(healthRoutes, { prefix: '/api' });
+  app.register(playerRoutes, { prefix: '/api/v1', riot });
 
   return app;
 }

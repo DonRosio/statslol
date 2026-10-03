@@ -199,6 +199,12 @@ importers:
 
   apps/api:
     dependencies:
+      '@statslol/riot-client':
+        specifier: workspace:*
+        version: link:../../packages/riot-client
+      '@statslol/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       fastify:
         specifier: ^5.12.5
         version: 5.12.5

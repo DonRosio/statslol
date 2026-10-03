@@ -32,9 +32,11 @@ cp .env.example .env && chmod 600 .env    # then fill in the values
 ## Layout
 
 - `apps/`: deployable applications (API, web app)
-  - `apps/api`: REST API (Fastify) served under `/api`, e.g. `GET /api/health`.
-    Its settings come from environment variables, documented in `.env.example`:
-    it refuses to start if one is invalid.
+  - `apps/api`: REST API (Fastify) served under `/api`. Its settings come from environment
+    variables, documented in `.env.example`: it refuses to start if one is invalid.
+    - `GET /api/health`: answers 200 while the API is up.
+    - `GET /api/v1/players/:region/:name/:tag`: profile of a player, e.g.
+      `/api/v1/players/euw/Hide%20on%20bush/KR1` (level, icon, solo and flex ranks).
 - `packages/`: code shared between apps
   - `packages/shared`: what both the API and the browser use, e.g. the Zod schemas of a
     Riot ID and of a region, so that both validate user input with the same rules.

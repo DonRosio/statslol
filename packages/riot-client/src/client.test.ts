@@ -4,7 +4,7 @@ import { delay, http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import { createRiotClient } from './client.ts';
+import { createRiotClient, type Platform } from './client.ts';
 import { RiotApiError } from './errors.ts';
 
 // Valid format, but cannot be a real key (allowed in .gitleaks.toml).
@@ -213,5 +213,105 @@ describe('getAccountByRiotId', () => {
       // inspect() shows everything: message, stack, properties and cause.
       expect(inspect(await lookUpError(), { depth: 5 })).not.toContain(API_KEY);
     }
+  });
+});
+
+describe('getSummonerByPuuid', () => {
+  const SUMMONER_URL =
+    'https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/:puuid';
+
+  it('returns the profile, from the API host of the platform', async () => {
+    server.use(
+      http.get(SUMMONER_URL, ({ params }) =>
+        HttpResponse.json({
+          puuid: params.puuid,
+          profileIconId: 7143,
+          revisionDate: 1790973984000,
+          summonerLevel: 150,
+        }),
+      ),
+    );
+
+    // Fields that are not used (revisionDate) are left out.
+    await expect(
+      client.getSummonerByPuuid('euw1', ACCOUNT.puuid),
+    ).resolves.toEqual({
+      puuid: ACCOUNT.puuid,
+      profileIconId: 7143,
+      summonerLevel: 150,
+    });
+  });
+
+  it('returns null for a player who never played on this platform (404)', async () => {
+    server.use(
+      http.get(SUMMONER_URL, () =>
+        HttpResponse.json(riotStatus(404, 'Data not found'), { status: 404 }),
+      ),
+    );
+
+    await expect(
+      client.getSummonerByPuuid('euw1', ACCOUNT.puuid),
+    ).resolves.toBeNull();
+  });
+
+  // The API key would be sent to that host: a value outside the list must never get there.
+  it.each([
+    'attacker.example/',
+    'euw1.attacker.example',
+    'euw1@attacker.example',
+  ])('refuses the platform %j, without calling Riot', async (platform) => {
+    await expect(
+      client.getSummonerByPuuid(platform as Platform, ACCOUNT.puuid),
+    ).rejects.toThrow(RangeError);
+  });
+});
+
+describe('getLeagueEntriesByPuuid', () => {
+  const ENTRIES_URL =
+    'https://kr.api.riotgames.com/lol/league/v4/entries/by-puuid/:puuid';
+
+  const SOLO_ENTRY = {
+    queueType: 'RANKED_SOLO_5x5',
+    tier: 'CHALLENGER',
+    rank: 'I',
+    leaguePoints: 1234,
+    wins: 300,
+    losses: 250,
+  };
+
+  it('returns the entries of every queue, even the ones it does not know', async () => {
+    const futureQueue = { ...SOLO_ENTRY, queueType: 'RANKED_FUTURE_QUEUE' };
+    server.use(
+      http.get(ENTRIES_URL, () =>
+        HttpResponse.json([
+          { ...SOLO_ENTRY, puuid: ACCOUNT.puuid, hotStreak: false },
+          futureQueue,
+        ]),
+      ),
+    );
+
+    await expect(
+      client.getLeagueEntriesByPuuid('kr', ACCOUNT.puuid),
+    ).resolves.toEqual([SOLO_ENTRY, futureQueue]);
+  });
+
+  it('returns an empty list for an unranked player', async () => {
+    server.use(http.get(ENTRIES_URL, () => HttpResponse.json([])));
+
+    await expect(
+      client.getLeagueEntriesByPuuid('kr', ACCOUNT.puuid),
+    ).resolves.toEqual([]);
+  });
+
+  it('reports an entry in an unexpected format', async () => {
+    server.use(
+      http.get(ENTRIES_URL, () =>
+        HttpResponse.json([{ ...SOLO_ENTRY, leaguePoints: '1234' }]),
+      ),
+    );
+
+    await expect(
+      client.getLeagueEntriesByPuuid('kr', ACCOUNT.puuid),
+    ).rejects.toMatchObject({ kind: 'unexpected-response' });
   });
 });

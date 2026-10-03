@@ -8,16 +8,63 @@ const ACCOUNT_API = 'https://europe.api.riotgames.com/riot/account/v1';
 
 const DEFAULT_TIMEOUT_MS = 5000;
 
+/** Riot's platforms: one per League of Legends server, each with its own API host. */
+export const PLATFORMS = [
+  'br1',
+  'eun1',
+  'euw1',
+  'jp1',
+  'kr',
+  'la1',
+  'la2',
+  'me1',
+  'na1',
+  'oc1',
+  'ru',
+  'sg2',
+  'tr1',
+  'tw2',
+  'vn2',
+] as const;
+
+export type Platform = (typeof PLATFORMS)[number];
+
 // Riot's answers are validated like any external input. PUUIDs end up in the URLs of
 // later calls: only the URL-safe characters they are made of are accepted.
+const puuidSchema = z.string().regex(/^[\w-]+$/);
+
 const accountSchema = z.object({
-  puuid: z.string().regex(/^[\w-]+$/),
+  puuid: puuidSchema,
   gameName: z.string(),
   tagLine: z.string(),
 });
 
+const summonerSchema = z.object({
+  puuid: puuidSchema,
+  profileIconId: z.number().int().nonnegative(),
+  summonerLevel: z.number().int().nonnegative(),
+});
+
+// Riot's vocabulary is kept as is: tier "GOLD", rank "II" (the division), queueType
+// "RANKED_SOLO_5x5"... New queues appear from time to time (e.g. RANKED_PREMADE_5x5 in
+// 2026), so these stay plain strings: callers pick the values they know.
+const leagueEntrySchema = z.object({
+  queueType: z.string(),
+  tier: z.string(),
+  rank: z.string(),
+  leaguePoints: z.number().int().nonnegative(),
+  wins: z.number().int().nonnegative(),
+  losses: z.number().int().nonnegative(),
+});
+
 /** A Riot account: its permanent identifier (PUUID) and its current Riot ID. */
 export type RiotAccount = Readonly<z.output<typeof accountSchema>>;
+
+/** A player's League of Legends profile on one platform. */
+export type RiotSummoner = Readonly<z.output<typeof summonerSchema>>;
+
+/** A player's rank in one ranked queue. */
+export type RiotLeagueEntry = Readonly<z.output<typeof leagueEntrySchema>>;
 
 export interface RiotClientOptions {
   readonly apiKey: string;
@@ -34,6 +81,21 @@ export interface RiotClient {
     readonly gameName: string;
     readonly tagLine: string;
   }): Promise<RiotAccount | null>;
+
+  /**
+   * Gets the League of Legends profile of a player on one platform. Returns null if the
+   * player has never played League of Legends there (e.g. a VALORANT-only account).
+   */
+  getSummonerByPuuid(
+    platform: Platform,
+    puuid: string,
+  ): Promise<RiotSummoner | null>;
+
+  /** Gets the ranks of a player on one platform: an empty list if unranked. */
+  getLeagueEntriesByPuuid(
+    platform: Platform,
+    puuid: string,
+  ): Promise<RiotLeagueEntry[]>;
 }
 
 export function createRiotClient({
@@ -68,7 +130,32 @@ export function createRiotClient({
       const path = `/accounts/by-riot-id/${pathSegment(gameName)}/${pathSegment(tagLine)}`;
       return await get(ACCOUNT_API + path, accountSchema);
     },
+
+    async getSummonerByPuuid(platform, puuid) {
+      const path = `/lol/summoner/v4/summoners/by-puuid/${pathSegment(puuid)}`;
+      return await get(platformApi(platform) + path, summonerSchema);
+    },
+
+    async getLeagueEntriesByPuuid(platform, puuid) {
+      const path = `/lol/league/v4/entries/by-puuid/${pathSegment(puuid)}`;
+      const entries = await get(
+        platformApi(platform) + path,
+        z.array(leagueEntrySchema),
+      );
+      return entries ?? [];
+    },
   };
+}
+
+/**
+ * The API host of a platform. The key is sent to this host: it is never built from a value
+ * outside the known list, even if a caller bypasses the types (e.g. with `as Platform`).
+ */
+function platformApi(platform: Platform): string {
+  if (!PLATFORMS.includes(platform)) {
+    throw new RangeError(`Unknown Riot platform: "${platform}"`);
+  }
+  return `https://${platform}.api.riotgames.com`;
 }
 
 /**

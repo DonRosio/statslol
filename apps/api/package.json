@@ -8,6 +8,8 @@
     "typecheck": "tsc"
   },
   "dependencies": {
+    "@statslol/riot-client": "workspace:*",
+    "@statslol/shared": "workspace:*",
     "fastify": "^5.12.5",
     "zod": "catalog:"
   },
