@@ -3,6 +3,8 @@ import { STATUS_CODES } from 'node:http';
 import { RiotApiError, type RiotApiErrorKind } from '@statslol/riot-client';
 import type { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
 
+import { DataDragonError } from './data-dragon.ts';
+
 /** An error whose status code and message are meant for the client, e.g. a 404. */
 export class HttpError extends Error {
   readonly statusCode: number;
@@ -48,6 +50,7 @@ const RIOT_FAILURES: Record<
  *   meant for the client: Fastify's default handler answers them (we pass them on by
  *   throwing them again);
  * - a failure of the Riot API gets a status code that says whether to try again later;
+ *   a failure of Data Dragon (Riot's CDN) is a 502: try again later;
  * - anything else is a bug or an unexpected failure: its details (message, stack trace)
  *   go to the logs, never to the client.
  */
@@ -58,6 +61,14 @@ export function errorHandler(
 ) {
   if (error instanceof RiotApiError) {
     return answerRiotFailure(error, request, reply);
+  }
+  if (error instanceof DataDragonError) {
+    request.log.warn({ err: error }, 'Data Dragon call failed');
+    return reply.code(502).send({
+      statusCode: 502,
+      error: STATUS_CODES[502],
+      message: 'Data Dragon is unavailable, try again later',
+    });
   }
 
   const statusCode =

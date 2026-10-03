@@ -21,6 +21,12 @@ export {
 } from './player-profile.ts';
 export { DEFAULT_REGION, regionSchema, type Region } from './region.ts';
 export {
+  championSchema,
+  staticDataSchema,
+  type Champion,
+  type StaticData,
+} from './static-data.ts';
+export {
   formatRiotId,
   gameNameSchema,
   riotIdSchema,

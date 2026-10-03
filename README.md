@@ -58,6 +58,9 @@ pnpm then reports that Vite "failed with signal SIGINT": that is expected).
     - `POST /api/v1/players/:region/:name/:tag/refresh`: the "Update" button. The next
       lookups of the player get fresh data from Riot. At most once every 2 minutes per
       player, whoever asks: otherwise 429, with the seconds to wait in `Retry-After`.
+    - `GET /api/v1/static-data`: what the web app needs from Data Dragon, Riot's CDN for
+      the files of the game: the version of its files (part of every image URL) and the
+      name of each champion, by champion ID. Asked to Data Dragon at most once an hour.
     - Every answer carries security headers (helmet). Requests are limited per IP address
       (60 per minute, 20 for player lookups, none for the health check): beyond, 429.
       Unexpected errors answer a generic 500; their details only go to the logs.

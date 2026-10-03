@@ -7,6 +7,10 @@ import { createCache, type CacheStore } from './cache/cache.ts';
 import { createRedisStore, type RedisConnection } from './cache/redis-store.ts';
 import { cachedRiotClient } from './cache/riot-client.ts';
 import type { Config } from './config.ts';
+import {
+  createDataDragonClient,
+  type DataDragonClient,
+} from './data-dragon.ts';
 import type { DatabaseConnection } from './db/connection.ts';
 import { createDatabase } from './db/database.ts';
 import { createMatchStore, type MatchStore } from './db/matches.ts';
@@ -18,6 +22,7 @@ import {
 } from './riot-calls.ts';
 import { healthRoutes } from './routes/health.ts';
 import { playerRoutes } from './routes/players.ts';
+import { staticDataRoutes } from './routes/static-data.ts';
 import { createMatchHistoryService } from './services/match-history.ts';
 import { zodSerializerCompiler, zodValidatorCompiler } from './zod.ts';
 
@@ -33,6 +38,8 @@ export interface AppOptions {
   readonly cacheStore?: CacheStore;
   /** Where matches are stored. Defaults to PostgreSQL; the tests pass a MemoryMatchStore. */
   readonly matchStore?: MatchStore;
+  /** Client of Data Dragon, Riot's CDN. Defaults to the real one; the tests pass a fake. */
+  readonly dataDragon?: DataDragonClient;
 }
 
 /** Creates the API without starting it: the tests send it requests with `app.inject()`. */
@@ -139,6 +146,11 @@ export function buildApp(
     riot: cachedRiot,
     matchHistory,
     cache,
+  });
+  app.register(staticDataRoutes, {
+    prefix: '/api/v1',
+    cache,
+    dataDragon: options.dataDragon ?? createDataDragonClient(),
   });
 
   return app;
