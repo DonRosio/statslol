@@ -1,0 +1,16 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Supply-chain hardening. pnpm 12 already blocks dependency install scripts
+# (strictDepBuilds) and git/tarball sources in transitive deps (blockExoticSubdeps).
+
+# Only install versions published at least 3 days ago: malicious releases are
+# usually detected and pulled within hours. Setting it explicitly also makes it
+# strict (install fails instead of silently picking a too-recent version).
+minimumReleaseAge: 4320
+
+# Fail if a package is published with weaker trust evidence than before
+# (e.g. it used to be published from CI with provenance and suddenly is not):
+# a typical sign of a hijacked maintainer account.
+trustPolicy: no-downgrade

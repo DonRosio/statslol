@@ -1,0 +1,8 @@
+{
+  // Covers the root-level tool configs only; each package has its own tsconfig.json.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["*.ts"]
+}

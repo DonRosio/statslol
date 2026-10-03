@@ -1,0 +1,5 @@
+{
+  // Code shared by the API and the web app: no Node.js or DOM types on purpose.
+  "extends": "../../tsconfig.base.json",
+  "include": ["src"]
+}

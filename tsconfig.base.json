@@ -1,0 +1,31 @@
+{
+  // Shared compiler options: every tsconfig.json in the repo extends this file.
+  "compilerOptions": {
+    // No implicit globals (Node.js or DOM): each package opts into its environment.
+    "target": "ES2024",
+    "lib": ["ES2024"],
+    "types": [],
+
+    // Native ES modules resolved the way Node.js does, imports written with ".ts".
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    // Only syntax that can be stripped without transformation (no enums, no namespaces),
+    // so Node.js, Vite and Vitest can all run the sources directly.
+    "erasableSyntaxOnly": true,
+
+    // tsc only type-checks: running and bundling are handled by other tools.
+    "noEmit": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+
+    "skipLibCheck": true
+  }
+}
