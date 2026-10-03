@@ -1,4 +1,13 @@
 export {
+  MATCHES_PER_PAGE,
+  matchHistorySchema,
+  matchResultSchema,
+  matchSummarySchema,
+  type MatchHistory,
+  type MatchResult,
+  type MatchSummary,
+} from './match.ts';
+export {
   divisionSchema,
   playerProfileSchema,
   rankSchema,

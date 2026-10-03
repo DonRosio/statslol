@@ -4,6 +4,7 @@ import type {
   RiotLeagueEntry,
   RiotSummoner,
 } from '@statslol/riot-client';
+import { MATCHES_PER_PAGE } from '@statslol/shared';
 import { describe, expect, it, vi } from 'vitest';
 
 import { fakeLogger } from '../test-logger.ts';
@@ -31,7 +32,7 @@ const SOLO: RiotLeagueEntry = {
   losses: 250,
 };
 
-function setUp() {
+function setUp({ keyGeneration = 1, store = new MemoryStore() } = {}) {
   const riot = {
     getAccountByRiotId: vi.fn<RiotClient['getAccountByRiotId']>(() =>
       Promise.resolve(ACCOUNT),
@@ -42,11 +43,18 @@ function setUp() {
     getLeagueEntriesByPuuid: vi.fn<RiotClient['getLeagueEntriesByPuuid']>(() =>
       Promise.resolve([SOLO]),
     ),
+    getMatchIdsByPuuid: vi.fn<RiotClient['getMatchIdsByPuuid']>(() =>
+      Promise.resolve(['EUW1_2', 'EUW1_1']),
+    ),
+    getMatch: vi.fn<RiotClient['getMatch']>(() => Promise.resolve(null)),
   };
-  const store = new MemoryStore();
-  const cached = cachedRiotClient(riot, createCache(store, fakeLogger()));
+  const cached = cachedRiotClient(riot, createCache(store, fakeLogger()), {
+    keyGeneration,
+  });
   return { riot, store, cached };
 }
+
+const FIRST_PAGE = { start: 0, count: MATCHES_PER_PAGE };
 
 describe('cachedRiotClient', () => {
   it('keeps an account for 6 hours, and "no such account" for 5 minutes', async () => {
@@ -61,10 +69,12 @@ describe('cachedRiotClient', () => {
     });
     await cached.getAccountByRiotId({ gameName: 'Nobody', tagLine: 'EUW' });
 
-    expect(store.entries.get('riot:account:hide on bush#kr1')?.ttlSeconds).toBe(
-      6 * 3600,
+    expect(
+      store.entries.get('riot:1:account:hide on bush#kr1')?.ttlSeconds,
+    ).toBe(6 * 3600);
+    expect(store.entries.get('riot:1:account:nobody#euw')?.ttlSeconds).toBe(
+      300,
     );
-    expect(store.entries.get('riot:account:nobody#euw')?.ttlSeconds).toBe(300);
   });
 
   it('finds an account written with other upper and lower case ASCII letters in the cache', async () => {
@@ -102,10 +112,12 @@ describe('cachedRiotClient', () => {
 
     expect(riot.getSummonerByPuuid).toHaveBeenCalledTimes(2);
     expect(riot.getLeagueEntriesByPuuid).toHaveBeenCalledTimes(2);
-    expect(store.entries.get(`riot:summoner:euw1:${PUUID}`)?.ttlSeconds).toBe(
+    expect(store.entries.get(`riot:1:summoner:euw1:${PUUID}`)?.ttlSeconds).toBe(
       300,
     );
-    expect(store.entries.get(`riot:league:kr:${PUUID}`)?.ttlSeconds).toBe(300);
+    expect(store.entries.get(`riot:1:league:kr:${PUUID}`)?.ttlSeconds).toBe(
+      300,
+    );
   });
 
   it('answers what Riot answered, read back from the cache', async () => {
@@ -116,6 +128,74 @@ describe('cachedRiotClient', () => {
       expect(await cached.getLeagueEntriesByPuuid('euw1', PUUID)).toEqual([
         SOLO,
       ]);
+    }
+  });
+
+  it('starts a new set of keys with each key generation', async () => {
+    const store = new MemoryStore();
+    const before = setUp({ keyGeneration: 1, store });
+    const after = setUp({ keyGeneration: 2, store });
+    const riotId = { gameName: 'Hide on bush', tagLine: 'KR1' };
+
+    await before.cached.getAccountByRiotId(riotId);
+    // The PUUID cached with the previous application is never read again.
+    await after.cached.getAccountByRiotId(riotId);
+
+    expect(after.riot.getAccountByRiotId).toHaveBeenCalledTimes(1);
+    expect(store.entries.has('riot:2:account:hide on bush#kr1')).toBe(true);
+  });
+
+  it('keeps the first page of match IDs for 2 minutes, and not the next ones', async () => {
+    const { riot, store, cached } = setUp();
+
+    for (let lookup = 1; lookup <= 2; lookup++) {
+      expect(
+        await cached.getMatchIdsByPuuid('euw1', PUUID, FIRST_PAGE),
+      ).toEqual(['EUW1_2', 'EUW1_1']);
+      await cached.getMatchIdsByPuuid('euw1', PUUID, {
+        start: MATCHES_PER_PAGE,
+        count: MATCHES_PER_PAGE,
+      });
+    }
+
+    // Once for the first page, twice for the second.
+    expect(riot.getMatchIdsByPuuid).toHaveBeenCalledTimes(3);
+    expect(
+      store.entries.get(`riot:1:match-ids:euw1:${PUUID}`)?.ttlSeconds,
+    ).toBe(120);
+  });
+
+  it('does not keep matches: they are stored in the database', async () => {
+    const { riot, cached } = setUp();
+
+    await cached.getMatch('euw1', 'EUW1_1');
+    await cached.getMatch('euw1', 'EUW1_1');
+
+    expect(riot.getMatch).toHaveBeenCalledTimes(2);
+  });
+
+  it('forgets what it knows about a player', async () => {
+    const { riot, store, cached } = setUp();
+    const riotId = { gameName: 'Hide on bush', tagLine: 'KR1' };
+    const lookUp = async () => {
+      await cached.getAccountByRiotId(riotId);
+      await cached.getSummonerByPuuid('euw1', PUUID);
+      await cached.getLeagueEntriesByPuuid('euw1', PUUID);
+      await cached.getMatchIdsByPuuid('euw1', PUUID, FIRST_PAGE);
+    };
+    await lookUp();
+
+    await cached.forgetPlayer({ riotId, platform: 'euw1', puuid: PUUID });
+
+    expect(store.entries.size).toBe(0);
+    await lookUp();
+    for (const method of [
+      riot.getAccountByRiotId,
+      riot.getSummonerByPuuid,
+      riot.getLeagueEntriesByPuuid,
+      riot.getMatchIdsByPuuid,
+    ]) {
+      expect(method).toHaveBeenCalledTimes(2);
     }
   });
 });

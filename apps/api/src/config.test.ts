@@ -13,6 +13,7 @@ const FAKE_RIOT_API_KEY = 'RGAPI-00000000-0000-0000-0000-000000000000';
 const REQUIRED = {
   RIOT_API_KEY: FAKE_RIOT_API_KEY,
   REDIS_PASSWORD: 'redis-secret',
+  POSTGRES_APP_PASSWORD: 'postgres-secret',
 };
 
 function expectValid<T>(result: ConfigResult<T>): T {
@@ -37,10 +38,19 @@ describe('loadConfig', () => {
       host: 'localhost',
       port: 3000,
       logLevel: 'info',
+      riotKeyGeneration: 1,
       redis: { host: 'localhost', port: 6379 },
+      // The role of the API, which can only read and write rows.
+      database: {
+        host: 'localhost',
+        port: 5432,
+        database: 'statslol',
+        user: 'statslol_app',
+      },
     });
     expect(config.riotApiKey.reveal()).toBe(FAKE_RIOT_API_KEY);
     expect(config.redis.password.reveal()).toBe('redis-secret');
+    expect(config.database.password.reveal()).toBe('postgres-secret');
   });
 
   it('reads the values of the environment variables', () => {
@@ -52,6 +62,9 @@ describe('loadConfig', () => {
         LOG_LEVEL: 'debug',
         REDIS_HOST: 'redis',
         REDIS_PORT: '6380',
+        POSTGRES_HOST: 'postgres',
+        POSTGRES_PORT: '5433',
+        RIOT_KEY_GENERATION: '2',
       }),
     );
 
@@ -59,7 +72,9 @@ describe('loadConfig', () => {
       host: '0.0.0.0',
       port: 8080,
       logLevel: 'debug',
+      riotKeyGeneration: 2,
       redis: { host: 'redis', port: 6380 },
+      database: { host: 'postgres', port: 5433 },
     });
   });
 
@@ -67,11 +82,13 @@ describe('loadConfig', () => {
     const config = expectValid(loadConfig({ ...REQUIRED, PATH: '/usr/bin' }));
 
     expect(Object.keys(config).sort()).toEqual([
+      'database',
       'host',
       'logLevel',
       'port',
       'redis',
       'riotApiKey',
+      'riotKeyGeneration',
     ]);
   });
 
@@ -97,6 +114,7 @@ describe('loadConfig', () => {
     expect(error).toContain('LOG_LEVEL');
     expect(error).toContain('RIOT_API_KEY');
     expect(error).toContain('REDIS_PASSWORD');
+    expect(error).toContain('POSTGRES_APP_PASSWORD');
   });
 
   it('rejects a malformed Riot API key without showing its value', () => {
@@ -112,7 +130,19 @@ describe('loadConfig', () => {
     const config = expectValid(loadConfig(REQUIRED));
 
     expect(JSON.stringify(config)).not.toContain('redis-secret');
+    expect(JSON.stringify(config)).not.toContain('postgres-secret');
   });
+
+  it.each(['0', '1.5', 'two', '40000'])(
+    'rejects RIOT_KEY_GENERATION=%s',
+    (generation) => {
+      expect(
+        expectInvalid(
+          loadConfig({ ...REQUIRED, RIOT_KEY_GENERATION: generation }),
+        ),
+      ).toContain('RIOT_KEY_GENERATION');
+    },
+  );
 
   it.each(['abc', '0', '65536'])('rejects REDIS_PORT=%s', (port) => {
     expect(

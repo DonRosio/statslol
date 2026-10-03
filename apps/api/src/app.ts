@@ -7,6 +7,9 @@ import { createCache, type CacheStore } from './cache/cache.ts';
 import { createRedisStore, type RedisConnection } from './cache/redis-store.ts';
 import { cachedRiotClient } from './cache/riot-client.ts';
 import type { Config } from './config.ts';
+import type { DatabaseConnection } from './db/connection.ts';
+import { createDatabase } from './db/database.ts';
+import { createMatchStore, type MatchStore } from './db/matches.ts';
 import { errorHandler } from './errors.ts';
 import {
   countRiotCalls,
@@ -15,7 +18,11 @@ import {
 } from './riot-calls.ts';
 import { healthRoutes } from './routes/health.ts';
 import { playerRoutes } from './routes/players.ts';
+import { createMatchHistoryService } from './services/match-history.ts';
 import { zodSerializerCompiler, zodValidatorCompiler } from './zod.ts';
+
+// Methods that only read: other websites may make browsers send them (links, images...).
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 export interface AppOptions {
   /** Where log lines (one JSON object per line) are written. Defaults to stdout. */
@@ -24,6 +31,8 @@ export interface AppOptions {
   readonly riot?: RiotClient;
   /** Where the cache keeps its values. Defaults to Redis; the tests pass a MemoryStore. */
   readonly cacheStore?: CacheStore;
+  /** Where matches are stored. Defaults to PostgreSQL; the tests pass a MemoryMatchStore. */
+  readonly matchStore?: MatchStore;
 }
 
 /** Creates the API without starting it: the tests send it requests with `app.inject()`. */
@@ -78,6 +87,28 @@ export function buildApp(
     timeWindow: '1 minute',
   });
 
+  // Cross-site request forgery: a page of another website must not make the browser of our
+  // visitors send requests that change something here (e.g. updating a player). Browsers
+  // tell where a request comes from (Fetch Metadata): only this site itself, or the visitor
+  // (typed URL, bookmark), may send them. Other clients (curl...) send no such header.
+  app.addHook('onRequest', (request, reply, done) => {
+    const site = request.headers['sec-fetch-site'];
+    if (
+      SAFE_METHODS.has(request.method) ||
+      site === undefined ||
+      site === 'same-origin' ||
+      site === 'none'
+    ) {
+      done();
+      return;
+    }
+    reply.code(403).send({
+      statusCode: 403,
+      error: 'Forbidden',
+      message: 'Requests from other websites are not allowed',
+    });
+  });
+
   countRiotCalls(app);
   // The only place where the API key is revealed: the client sends it to Riot.
   const riot =
@@ -92,14 +123,32 @@ export function buildApp(
     options.cacheStore ?? connectRedis(app, config.redis),
     app.log,
   );
+  const cachedRiot = cachedRiotClient(riot, cache, {
+    keyGeneration: config.riotKeyGeneration,
+  });
+  const matchHistory = createMatchHistoryService({
+    riot: cachedRiot,
+    store: options.matchStore ?? connectDatabase(app, config.database),
+    keyGeneration: config.riotKeyGeneration,
+    log: app.log,
+  });
 
   app.register(healthRoutes, { prefix: '/api' });
   app.register(playerRoutes, {
     prefix: '/api/v1',
-    riot: cachedRiotClient(riot, cache),
+    riot: cachedRiot,
+    matchHistory,
+    cache,
   });
 
   return app;
+}
+
+/** Opens connections to PostgreSQL when needed, and closes them when the app closes. */
+function connectDatabase(app: FastifyInstance, connection: DatabaseConnection) {
+  const { db, close } = createDatabase(connection, app.log);
+  app.addHook('onClose', close);
+  return createMatchStore(db);
 }
 
 /** Connects to Redis in the background, and disconnects when the app closes. */

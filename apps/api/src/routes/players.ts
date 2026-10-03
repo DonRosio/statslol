@@ -1,6 +1,6 @@
-import type { RiotClient } from '@statslol/riot-client';
 import {
   gameNameSchema,
+  matchHistorySchema,
   playerProfileSchema,
   regionSchema,
   tagLineSchema,
@@ -8,12 +8,18 @@ import {
 import type { FastifyPluginCallback } from 'fastify';
 import { z } from 'zod';
 
+import type { Cache } from '../cache/cache.ts';
+import type { CachedRiotClient } from '../cache/riot-client.ts';
 import { HttpError } from '../errors.ts';
+import type { MatchHistoryService } from '../services/match-history.ts';
 import { getPlayerProfile } from '../services/player-profile.ts';
+import { refreshPlayer } from '../services/refresh.ts';
 import type { ZodTypeProvider } from '../zod.ts';
 
 export interface PlayerRoutesOptions {
-  readonly riot: RiotClient;
+  readonly riot: CachedRiotClient;
+  readonly matchHistory: MatchHistoryService;
+  readonly cache: Cache;
 }
 
 const playerParamsSchema = z.object({
@@ -22,12 +28,19 @@ const playerParamsSchema = z.object({
   tag: tagLineSchema,
 });
 
+const matchHistoryQuerySchema = z.object({
+  // Number of matches to skip, from the most recent: the `nextStart` of the previous page.
+  start: z.coerce.number().int().min(0).max(1000).default(0),
+});
+
 export const playerRoutes: FastifyPluginCallback<PlayerRoutesOptions> = (
   app,
-  { riot },
+  { riot, matchHistory, cache },
   done,
 ) => {
-  app.withTypeProvider<ZodTypeProvider>().get(
+  const routes = app.withTypeProvider<ZodTypeProvider>();
+
+  routes.get(
     '/players/:region/:name/:tag',
     {
       schema: {
@@ -52,5 +65,63 @@ export const playerRoutes: FastifyPluginCallback<PlayerRoutesOptions> = (
       return profile;
     },
   );
+
+  routes.get(
+    '/players/:region/:name/:tag/matches',
+    {
+      schema: {
+        params: playerParamsSchema,
+        querystring: matchHistoryQuerySchema,
+        response: { 200: matchHistorySchema },
+      },
+      // A page of matches never seen before costs up to 11 calls to Riot.
+      config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
+    },
+    async (request) => {
+      const { region, name, tag } = request.params;
+      const history = await matchHistory.getPage({
+        region,
+        gameName: name,
+        tagLine: tag,
+        start: request.query.start,
+      });
+      if (history === null) {
+        throw new HttpError(404, 'No player with this Riot ID');
+      }
+      return history;
+    },
+  );
+
+  routes.post(
+    '/players/:region/:name/:tag/refresh',
+    {
+      schema: { params: playerParamsSchema },
+      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const { region, name, tag } = request.params;
+      const result = await refreshPlayer(
+        { riot, cache },
+        { region, gameName: name, tagLine: tag },
+      );
+      switch (result.outcome) {
+        case 'not-found':
+          throw new HttpError(404, 'No player with this Riot ID');
+        case 'too-soon':
+          return reply
+            .code(429)
+            .header('Retry-After', String(result.retryAfterSeconds))
+            .send({
+              statusCode: 429,
+              error: 'Too Many Requests',
+              message: 'This player was updated less than 2 minutes ago',
+            });
+        case 'refreshed':
+          // Nothing to send: the next lookups get fresh data.
+          return reply.code(204).send();
+      }
+    },
+  );
+
   done();
 };

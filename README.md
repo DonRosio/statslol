@@ -48,12 +48,20 @@ the last two commands above.
     - `GET /api/health`: answers 200 while the API is up.
     - `GET /api/v1/players/:region/:name/:tag`: profile of a player, e.g.
       `/api/v1/players/euw/Hide%20on%20bush/KR1` (level, icon, solo and flex ranks).
+    - `GET /api/v1/players/:region/:name/:tag/matches?start=0`: a page of 10 matches of the
+      player, the most recent first, and the `start` of the next page. Each match is fetched
+      from Riot once, then stored in PostgreSQL.
+    - `POST /api/v1/players/:region/:name/:tag/refresh`: the "Update" button. The next
+      lookups of the player get fresh data from Riot. At most once every 2 minutes per
+      player, whoever asks: otherwise 429, with the seconds to wait in `Retry-After`.
     - Every answer carries security headers (helmet). Requests are limited per IP address
       (60 per minute, 20 for player lookups, none for the health check): beyond, 429.
       Unexpected errors answer a generic 500; their details only go to the logs.
+      Requests that change something (POST...) sent by a page of another website are
+      refused (403): browsers tell where requests come from (`Sec-Fetch-Site`).
     - Riot's answers are cached in Redis: a Riot ID for 6 hours, a level or a rank for
-      5 minutes. Simultaneous lookups of a player share the same calls to Riot. Without
-      Redis, the API keeps answering, from Riot.
+      5 minutes, the latest matches of a player for 2 minutes. Simultaneous lookups share
+      the same calls to Riot. Without Redis, the API keeps answering, from Riot.
     - The log line of each request gives the number of calls it sent to Riot (`riotCalls`);
       with `LOG_LEVEL=debug`, each call is logged too.
     - `src/db/schema.ts`: tables of the PostgreSQL database (Drizzle ORM). Each change comes

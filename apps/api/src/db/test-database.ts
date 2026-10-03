@@ -4,12 +4,9 @@ import { randomUUID } from 'node:crypto';
 
 import { Client, escapeIdentifier } from 'pg';
 
-import { loadMigrationConfig } from '../config.ts';
+import { DATABASE_APP_ROLE, loadMigrationConfig } from '../config.ts';
 import { Secret } from '../secret.ts';
 import { clientConfig, type DatabaseConnection } from './connection.ts';
-
-// Created by docker/postgres/initdb.
-const APP_ROLE = 'statslol_app';
 
 export interface TestDatabase {
   /** Connection as the superuser, who runs the migrations. */
@@ -45,7 +42,7 @@ export async function createTestDatabase(): Promise<TestDatabase> {
     app: {
       ...server,
       database: name,
-      user: APP_ROLE,
+      user: DATABASE_APP_ROLE,
       password: new Secret(appPassword),
     },
     async drop() {

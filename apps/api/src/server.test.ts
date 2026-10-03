@@ -28,12 +28,14 @@ describe('server', () => {
 
   it('serves requests, then stops cleanly on SIGTERM', async () => {
     const server = spawn(process.execPath, [serverPath], {
-      // Redis may be unreachable or refuse this password: the API starts without its cache.
+      // Redis and PostgreSQL may be unreachable or refuse these passwords: the API still
+      // starts (without cache; the match history would answer 500 until the database is up).
       env: {
         HOST: '127.0.0.1',
         PORT: '0',
         RIOT_API_KEY: FAKE_RIOT_API_KEY,
         REDIS_PASSWORD: 'unused',
+        POSTGRES_APP_PASSWORD: 'unused',
       },
       stdio: ['ignore', 'pipe', 'inherit'],
     });

@@ -39,7 +39,7 @@ describe('getOrLoad', () => {
     });
 
     expect(load).toHaveBeenCalledTimes(1);
-    expect(store.entries.get('player:1')).toEqual({
+    expect(store.entries.get('player:1')).toMatchObject({
       value: '{"level":30}',
       ttlSeconds: 60,
     });
@@ -54,7 +54,7 @@ describe('getOrLoad', () => {
     expect(await cache.getOrLoad('player:1', policy, load)).toBeNull();
 
     expect(load).toHaveBeenCalledTimes(1);
-    expect(store.entries.get('player:1')).toEqual({
+    expect(store.entries.get('player:1')).toMatchObject({
       value: 'null',
       ttlSeconds: 10,
     });
@@ -117,7 +117,7 @@ describe('getOrLoad', () => {
     'loads again a stored value %s, and replaces it',
     async (_case, stored) => {
       const store = new MemoryStore();
-      store.entries.set('player:1', { value: stored, ttlSeconds: 60 });
+      await store.set('player:1', stored, 60);
       const { cache, log } = setUp(store);
 
       expect(
@@ -140,6 +140,8 @@ describe('getOrLoad', () => {
     const failing: CacheStore = {
       get: () => Promise.reject(new Error('Redis exploded')),
       set: () => Promise.reject(new Error('Redis exploded')),
+      delete: () => Promise.reject(new Error('Redis exploded')),
+      setIfAbsent: () => Promise.reject(new Error('Redis exploded')),
     };
     const { cache, log } = setUp(failing);
 
@@ -160,6 +162,8 @@ describe('getOrLoad', () => {
     const silent: CacheStore = {
       get: () => new Promise(() => undefined),
       set: () => new Promise(() => undefined),
+      delete: () => new Promise(() => undefined),
+      setIfAbsent: () => new Promise(() => undefined),
     };
     const { cache } = setUp(silent);
     let player: Player | null | undefined;

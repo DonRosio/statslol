@@ -430,3 +430,131 @@ describe('onCall', () => {
     expect(calls).toHaveLength(1);
   });
 });
+
+/** A match as Riot sends it: the fields the client checks, and a few of the others. */
+function riotMatch(matchId = 'EUW1_7123456789') {
+  return {
+    metadata: { dataVersion: '2', matchId, participants: [ACCOUNT.puuid] },
+    info: {
+      gameMode: 'CLASSIC',
+      gameStartTimestamp: 1_790_973_045_769,
+      gameEndTimestamp: 1_790_973_980_603,
+      gameDuration: 935,
+      queueId: 440,
+      participants: [
+        {
+          puuid: ACCOUNT.puuid,
+          championId: 517,
+          championName: 'Sylas',
+          kills: 1,
+          deaths: 4,
+          assists: 3,
+          totalMinionsKilled: 9,
+          neutralMinionsKilled: 94,
+          teamPosition: 'JUNGLE',
+          win: false,
+          gameEndedInEarlySurrender: false,
+          item0: 3147,
+          challenges: { kda: 1 },
+        },
+      ],
+    },
+  };
+}
+
+describe('getMatchIdsByPuuid', () => {
+  it.each<[Platform, string]>([
+    ['euw1', 'europe'],
+    ['kr', 'asia'],
+    ['na1', 'americas'],
+    ['oc1', 'sea'],
+  ])(
+    'asks the region of the platform (%s: %s) for one page of IDs',
+    async (platform, region) => {
+      let url: URL | undefined;
+      server.use(
+        http.get(
+          `https://${region}.api.riotgames.com/lol/match/v5/matches/by-puuid/:puuid/ids`,
+          ({ request }) => {
+            url = new URL(request.url);
+            return HttpResponse.json(['EUW1_2', 'EUW1_1']);
+          },
+        ),
+      );
+
+      await expect(
+        client.getMatchIdsByPuuid(platform, ACCOUNT.puuid, {
+          start: 20,
+          count: 10,
+        }),
+      ).resolves.toEqual(['EUW1_2', 'EUW1_1']);
+      expect(url?.searchParams.get('start')).toBe('20');
+      expect(url?.searchParams.get('count')).toBe('10');
+    },
+  );
+
+  it('reports a match ID that could change a URL as unexpected', async () => {
+    server.use(
+      http.get(
+        'https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/:puuid/ids',
+        () => HttpResponse.json(['EUW1_1', '../admin']),
+      ),
+    );
+
+    await expect(
+      client.getMatchIdsByPuuid('euw1', ACCOUNT.puuid, { start: 0, count: 10 }),
+    ).rejects.toMatchObject({ kind: 'unexpected-response' });
+  });
+
+  // No handler is set: if a request were sent, it would fail with another error.
+  it.each([
+    { start: -1, count: 10 },
+    { start: 1.5, count: 10 },
+    { start: 0, count: 101 },
+  ])('refuses the page %j, without calling Riot', async (page) => {
+    await expect(
+      client.getMatchIdsByPuuid('euw1', ACCOUNT.puuid, page),
+    ).rejects.toThrow(RangeError);
+  });
+});
+
+describe('getMatch', () => {
+  const MATCH_URL =
+    'https://europe.api.riotgames.com/lol/match/v5/matches/:matchId';
+
+  it('returns the match, with every field Riot sent', async () => {
+    server.use(http.get(MATCH_URL, () => HttpResponse.json(riotMatch())));
+
+    await expect(client.getMatch('euw1', 'EUW1_7123456789')).resolves.toEqual(
+      riotMatch(),
+    );
+  });
+
+  it('returns null for a match Riot does not have (404)', async () => {
+    server.use(
+      http.get(MATCH_URL, () => new HttpResponse(null, { status: 404 })),
+    );
+
+    await expect(client.getMatch('euw1', 'EUW1_1')).resolves.toBeNull();
+  });
+
+  it('reports a match without a field the API uses as unexpected', async () => {
+    const match = riotMatch();
+    const participant: Record<string, unknown> = {
+      ...match.info.participants[0],
+    };
+    delete participant.win;
+    server.use(
+      http.get(MATCH_URL, () =>
+        HttpResponse.json({
+          ...match,
+          info: { ...match.info, participants: [participant] },
+        }),
+      ),
+    );
+
+    await expect(client.getMatch('euw1', 'EUW1_1')).rejects.toMatchObject({
+      kind: 'unexpected-response',
+    });
+  });
+});

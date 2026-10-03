@@ -51,6 +51,34 @@ describe('Redis store', () => {
     await redis.del(key);
   });
 
+  it('deletes keys', async () => {
+    const { store, log } = createStore(redisConnection());
+    await vi.waitFor(() => {
+      expect(log.info).toHaveBeenCalledWith('Redis connected: cache enabled');
+    });
+    const keys = [newKey(), newKey()];
+    for (const key of keys) await store.set(key, 'value', 60);
+
+    await store.delete(keys);
+
+    for (const key of keys) expect(await store.get(key)).toBeNull();
+  });
+
+  it('stores a key only if it is absent, else tells how long the existing one lives', async () => {
+    const { store, log } = createStore(redisConnection());
+    await vi.waitFor(() => {
+      expect(log.info).toHaveBeenCalledWith('Redis connected: cache enabled');
+    });
+    const key = newKey();
+    onTestFinished(() => store.delete([key]));
+
+    expect(await store.setIfAbsent(key, 60)).toBe(0);
+    const secondsLeft = await store.setIfAbsent(key, 60);
+
+    expect(secondsLeft).toBeGreaterThan(55);
+    expect(secondsLeft).toBeLessThanOrEqual(60);
+  });
+
   it('finds nothing under a key it does not have', async () => {
     const { store, log } = createStore(redisConnection());
     await vi.waitFor(() => {

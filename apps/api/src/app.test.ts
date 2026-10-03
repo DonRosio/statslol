@@ -3,24 +3,27 @@ import { describe, expect, it, onTestFinished } from 'vitest';
 import { buildApp, type AppOptions } from './app.ts';
 import { MemoryStore } from './cache/memory-store.ts';
 import type { Config } from './config.ts';
+import { MemoryMatchStore } from './db/memory-match-store.ts';
 import { Secret } from './secret.ts';
+import { TEST_CONFIG } from './test-config.ts';
 
 const config: Config = {
-  host: 'localhost',
-  port: 0,
-  logLevel: 'silent',
-  riotApiKey: new Secret('RGAPI-test-key'),
-  redis: {
-    host: 'localhost',
-    port: 6379,
-    password: new Secret('redis-test-password'),
+  ...TEST_CONFIG,
+  redis: { ...TEST_CONFIG.redis, password: new Secret('redis-test-password') },
+  database: {
+    ...TEST_CONFIG.database,
+    password: new Secret('postgres-test-password'),
   },
 };
 
 function createApp(overrides: Partial<Config> = {}, options?: AppOptions) {
   const app = buildApp(
     { ...config, ...overrides },
-    { cacheStore: new MemoryStore(), ...options },
+    {
+      cacheStore: new MemoryStore(),
+      matchStore: new MemoryMatchStore(),
+      ...options,
+    },
   );
   onTestFinished(() => app.close());
   return app;
@@ -75,8 +78,9 @@ describe('logs', () => {
     expect(output).not.toContain('session=abc123');
     expect(output).not.toContain('RGAPI-');
     expect(output).not.toContain('redis-test-password');
+    expect(output).not.toContain('postgres-test-password');
     // The masked values are still listed, so the logs show which fields were there.
-    expect(output.match(/\[REDACTED\]/g)).toHaveLength(5);
+    expect(output.match(/\[REDACTED\]/g)).toHaveLength(6);
   });
 });
 

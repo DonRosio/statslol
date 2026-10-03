@@ -62,6 +62,21 @@ export function createRedisStore(
         expiration: { type: 'EX', value: ttlSeconds },
       });
     },
+    async delete(keys) {
+      if (!client.isReady || keys.length === 0) return;
+      await client.del([...keys]);
+    },
+    async setIfAbsent(key, ttlSeconds) {
+      if (!client.isReady) return 0;
+      // NX: one atomic command, so that two simultaneous calls cannot both store the key.
+      const stored = await client.set(key, '1', {
+        condition: 'NX',
+        expiration: { type: 'EX', value: ttlSeconds },
+      });
+      if (stored !== null) return 0;
+      // At least 1: the key may have expired between the two commands.
+      return Math.max(1, await client.ttl(key));
+    },
     async close() {
       await client.close();
     },

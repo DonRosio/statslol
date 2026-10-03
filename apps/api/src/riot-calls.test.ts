@@ -14,7 +14,8 @@ import {
 import { buildApp } from './app.ts';
 import { MemoryStore } from './cache/memory-store.ts';
 import type { Config } from './config.ts';
-import { Secret } from './secret.ts';
+import { MemoryMatchStore } from './db/memory-match-store.ts';
+import { TEST_CONFIG } from './test-config.ts';
 
 const PUUID = 'fake-puuid'.padEnd(78, '0');
 
@@ -45,14 +46,8 @@ afterAll(() => {
   server.close();
 });
 
-const config: Config = {
-  host: 'localhost',
-  port: 0,
-  // Each call to Riot is logged at debug level.
-  logLevel: 'debug',
-  riotApiKey: new Secret('RGAPI-test-key'),
-  redis: { host: 'localhost', port: 6379, password: new Secret('unused') },
-};
+// Each call to Riot is logged at debug level.
+const config: Config = { ...TEST_CONFIG, logLevel: 'debug' };
 
 interface LogLine {
   msg: string;
@@ -67,6 +62,7 @@ function createApp() {
   const lines: LogLine[] = [];
   const app = buildApp(config, {
     cacheStore: new MemoryStore(),
+    matchStore: new MemoryMatchStore(),
     logStream: { write: (line) => lines.push(JSON.parse(line) as LogLine) },
   });
   onTestFinished(() => app.close());

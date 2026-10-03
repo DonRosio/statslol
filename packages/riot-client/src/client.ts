@@ -31,6 +31,30 @@ export const PLATFORMS = [
 
 export type Platform = (typeof PLATFORMS)[number];
 
+// Match data is served by region, each region for several platforms. Asked the wrong
+// region, Riot answers an empty list rather than an error: this table must be right
+// (same as the Riven library, maintained by the author of Riot's community API schema).
+const MATCH_ROUTE_BY_PLATFORM: Record<
+  Platform,
+  'americas' | 'asia' | 'europe' | 'sea'
+> = {
+  br1: 'americas',
+  eun1: 'europe',
+  euw1: 'europe',
+  jp1: 'asia',
+  kr: 'asia',
+  la1: 'americas',
+  la2: 'americas',
+  me1: 'europe',
+  na1: 'americas',
+  oc1: 'sea',
+  ru: 'europe',
+  sg2: 'sea',
+  tr1: 'europe',
+  tw2: 'sea',
+  vn2: 'sea',
+};
+
 // Riot's answers are validated like any external input. PUUIDs end up in the URLs of
 // later calls: only the URL-safe characters they are made of are accepted. The schemas are
 // exported so that an answer kept somewhere (e.g. in a cache) can be checked again.
@@ -60,6 +84,42 @@ export const riotLeagueEntrySchema = z.object({
   losses: z.number().int().nonnegative(),
 });
 
+// Match IDs end up in URLs: the platform, then a number, e.g. "EUW1_7123456789".
+export const riotMatchIdSchema = z.string().regex(/^[A-Z0-9]+_\d+$/);
+
+// A match holds about 150 fields per player: only the ones the API uses are checked. The
+// others are kept as they are (looseObject), so that a stored match keeps all of Riot's data.
+const riotParticipantSchema = z.looseObject({
+  // Not used in URLs: only compared with the PUUID of the player looked up.
+  puuid: z.string(),
+  championId: z.number().int(),
+  // Riot's internal name, used in Data Dragon file names (e.g. "MonkeyKing" for Wukong).
+  championName: z.string(),
+  kills: z.number().int().nonnegative(),
+  deaths: z.number().int().nonnegative(),
+  assists: z.number().int().nonnegative(),
+  totalMinionsKilled: z.number().int().nonnegative(),
+  neutralMinionsKilled: z.number().int().nonnegative(),
+  // TOP, JUNGLE, MIDDLE, BOTTOM, UTILITY, or "" in modes without positions (ARAM...).
+  teamPosition: z.string(),
+  win: z.boolean(),
+  // A "remake": the game was abandoned in its first minutes and counts for nothing.
+  gameEndedInEarlySurrender: z.boolean(),
+});
+
+export const riotMatchSchema = z.looseObject({
+  metadata: z.looseObject({ matchId: riotMatchIdSchema }),
+  info: z.looseObject({
+    // Milliseconds since 1970.
+    gameStartTimestamp: z.number().int().nonnegative(),
+    // Missing before patch 11.20 (2021), when gameDuration was in milliseconds, not seconds.
+    gameEndTimestamp: z.number().int().nonnegative().optional(),
+    gameDuration: z.number().int().nonnegative(),
+    queueId: z.number().int().nonnegative(),
+    participants: z.array(riotParticipantSchema),
+  }),
+});
+
 /** A Riot account: its permanent identifier (PUUID) and its current Riot ID. */
 export type RiotAccount = Readonly<z.output<typeof riotAccountSchema>>;
 
@@ -68,6 +128,9 @@ export type RiotSummoner = Readonly<z.output<typeof riotSummonerSchema>>;
 
 /** A player's rank in one ranked queue. */
 export type RiotLeagueEntry = Readonly<z.output<typeof riotLeagueEntrySchema>>;
+
+/** A finished match (MatchDto of match-v5), with every field Riot sent. */
+export type RiotMatch = z.output<typeof riotMatchSchema>;
 
 export interface RiotClientOptions {
   readonly apiKey: string;
@@ -129,6 +192,19 @@ export interface RiotClient {
     platform: Platform,
     puuid: string,
   ): Promise<RiotLeagueEntry[]>;
+
+  /**
+   * Gets the IDs of a player's matches in the region of a platform, the most recent first:
+   * `count` of them (at most 100), skipping the first `start`. An empty list past the end.
+   */
+  getMatchIdsByPuuid(
+    platform: Platform,
+    puuid: string,
+    page: { readonly start: number; readonly count: number },
+  ): Promise<string[]>;
+
+  /** Gets a match, from the region of a platform. Returns null if Riot does not have it. */
+  getMatch(platform: Platform, matchId: string): Promise<RiotMatch | null>;
 }
 
 export function createRiotClient({
@@ -204,6 +280,28 @@ export function createRiotClient({
       };
       return (await get(request, z.array(riotLeagueEntrySchema))) ?? [];
     },
+
+    async getMatchIdsByPuuid(platform, puuid, { start, count }) {
+      const query = new URLSearchParams({
+        start: String(checkInteger(start, 0, Number.MAX_SAFE_INTEGER)),
+        count: String(checkInteger(count, 0, 100)),
+      });
+      const request = {
+        route: MATCH_ROUTE_BY_PLATFORM[checkPlatform(platform)],
+        method: 'match-v5.getMatchIdsByPUUID',
+        path: `/lol/match/v5/matches/by-puuid/${pathSegment(puuid)}/ids?${query.toString()}`,
+      };
+      return (await get(request, z.array(riotMatchIdSchema))) ?? [];
+    },
+
+    async getMatch(platform, matchId) {
+      const request = {
+        route: MATCH_ROUTE_BY_PLATFORM[checkPlatform(platform)],
+        method: 'match-v5.getMatch',
+        path: `/lol/match/v5/matches/${pathSegment(matchId)}`,
+      };
+      return await get(request, riotMatchSchema);
+    },
   };
 }
 
@@ -217,6 +315,16 @@ function checkPlatform(platform: Platform): Platform {
     throw new RangeError(`Unknown Riot platform: "${platform}"`);
   }
   return platform;
+}
+
+/** Checks a number sent in a URL: an integer within Riot's limits. */
+function checkInteger(value: number, min: number, max: number): number {
+  if (!Number.isInteger(value) || value < min || value > max) {
+    throw new RangeError(
+      `Expected an integer from ${String(min)} to ${String(max)}, got ${String(value)}`,
+    );
+  }
+  return value;
 }
 
 /**

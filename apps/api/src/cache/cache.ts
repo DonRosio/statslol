@@ -1,12 +1,21 @@
 import type { FastifyBaseLogger } from 'fastify';
 import type { z } from 'zod';
 
+import { createSingleFlight } from '../single-flight.ts';
+
 /** Where the cache keeps its values: Redis, or memory in the tests. */
 export interface CacheStore {
   /** The value stored under this key, or null if there is none or the store is unavailable. */
   get(key: string): Promise<string | null>;
   /** Stores a value for ttlSeconds. Does nothing if the store is unavailable. */
   set(key: string, value: string, ttlSeconds: number): Promise<void>;
+  /** Deletes these keys. Does nothing if the store is unavailable. */
+  delete(keys: readonly string[]): Promise<void>;
+  /**
+   * Stores the key for ttlSeconds, unless it is there already: then returns the seconds it
+   * still has to live. Returns 0 if it stored the key, or if the store is unavailable.
+   */
+  setIfAbsent(key: string, ttlSeconds: number): Promise<number>;
 }
 
 /** How one kind of value is cached. */
@@ -30,6 +39,16 @@ export interface Cache {
     policy: CachePolicy<T>,
     load: () => Promise<T>,
   ): Promise<T>;
+
+  /** Removes these keys: their next getOrLoad loads them again. */
+  forget(keys: readonly string[]): Promise<void>;
+
+  /**
+   * Starts a cooldown of `seconds` under `key`, unless one is running: then returns the
+   * seconds it has left. Returns 0 when it starts one. If the store fails, it returns 0 too:
+   * a cooldown only spares the sources, and a broken store must not block the API.
+   */
+  startCooldown(key: string, seconds: number): Promise<number>;
 }
 
 // Longest wait for the store, after which the value is loaded as if it were not cached:
@@ -41,8 +60,7 @@ const STORE_TIMEOUT_MS = 200;
  * accelerator: if it fails, values are loaded from the source, and the failure is logged.
  */
 export function createCache(store: CacheStore, log: FastifyBaseLogger): Cache {
-  // Loads in progress, by key.
-  const loading = new Map<string, Promise<unknown>>();
+  const singleFlight = createSingleFlight();
 
   async function read<T>(
     key: string,
@@ -98,20 +116,28 @@ export function createCache(store: CacheStore, log: FastifyBaseLogger): Cache {
   }
 
   return {
-    getOrLoad<T>(
-      key: string,
-      policy: CachePolicy<T>,
-      load: () => Promise<T>,
-    ): Promise<T> {
-      const pending = loading.get(key);
-      // Same key, same kind of value: the pending load returns a T.
-      if (pending !== undefined) return pending as Promise<T>;
+    getOrLoad(key, policy, load) {
+      return singleFlight.run(key, () => readOrLoad(key, policy, load));
+    },
 
-      const promise = readOrLoad(key, policy, load).finally(() => {
-        loading.delete(key);
-      });
-      loading.set(key, promise);
-      return promise;
+    async forget(keys) {
+      try {
+        await withTimeout(store.delete(keys), STORE_TIMEOUT_MS);
+      } catch (error) {
+        log.warn({ err: error }, 'Cache deletion failed');
+      }
+    },
+
+    async startCooldown(key, seconds) {
+      try {
+        return await withTimeout(
+          store.setIfAbsent(key, seconds),
+          STORE_TIMEOUT_MS,
+        );
+      } catch (error) {
+        log.warn({ err: error }, 'Cooldown check failed: allowed');
+        return 0;
+      }
     },
   };
 }

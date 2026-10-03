@@ -10,16 +10,13 @@ import { describe, expect, it, onTestFinished, vi } from 'vitest';
 
 import { buildApp } from '../app.ts';
 import { MemoryStore } from '../cache/memory-store.ts';
-import type { Config } from '../config.ts';
-import { Secret } from '../secret.ts';
+import { MemoryMatchStore } from '../db/memory-match-store.ts';
+import { TEST_CONFIG as config } from '../test-config.ts';
 
-const config: Config = {
-  host: 'localhost',
-  port: 0,
-  logLevel: 'silent',
-  riotApiKey: new Secret('RGAPI-test-key'),
-  redis: { host: 'localhost', port: 6379, password: new Secret('unused') },
-};
+/** New, empty stores: each test starts without cache and without stored matches. */
+function emptyStores() {
+  return { cacheStore: new MemoryStore(), matchStore: new MemoryMatchStore() };
+}
 
 const ACCOUNT: RiotAccount = {
   puuid: 'fake-puuid'.padEnd(78, '0'),
@@ -65,12 +62,16 @@ function fakeRiot() {
     getLeagueEntriesByPuuid: vi.fn<RiotClient['getLeagueEntriesByPuuid']>(() =>
       Promise.resolve([SOLO, FLEX, PREMADE]),
     ),
+    getMatchIdsByPuuid: vi.fn<RiotClient['getMatchIdsByPuuid']>(() =>
+      Promise.resolve([]),
+    ),
+    getMatch: vi.fn<RiotClient['getMatch']>(() => Promise.resolve(null)),
   };
 }
 
 /** Sends GET /api/v1/players/<path> to an app that uses this Riot client. */
 function getPlayer(riot: RiotClient, path: string) {
-  const app = buildApp(config, { riot, cacheStore: new MemoryStore() });
+  const app = buildApp(config, { riot, ...emptyStores() });
   onTestFinished(() => app.close());
   return app.inject({ method: 'GET', url: `/api/v1/players/${path}` });
 }
@@ -237,10 +238,7 @@ describe('GET /api/v1/players/:region/:name/:tag', () => {
 
 describe('limits and unexpected errors', () => {
   it('answers 429 beyond 20 lookups per minute from the same address', async () => {
-    const app = buildApp(config, {
-      riot: fakeRiot(),
-      cacheStore: new MemoryStore(),
-    });
+    const app = buildApp(config, { riot: fakeRiot(), ...emptyStores() });
     onTestFinished(() => app.close());
     const lookUp = () =>
       app.inject({
@@ -271,7 +269,7 @@ describe('limits and unexpected errors', () => {
       { ...config, logLevel: 'error' },
       {
         riot,
-        cacheStore: new MemoryStore(),
+        ...emptyStores(),
         logStream: { write: (line) => lines.push(line) },
       },
     );
@@ -299,7 +297,7 @@ describe('cache', () => {
   const url = '/api/v1/players/kr/Hide%20on%20bush/KR1';
 
   function createApp(riot: RiotClient) {
-    const app = buildApp(config, { riot, cacheStore: new MemoryStore() });
+    const app = buildApp(config, { riot, ...emptyStores() });
     onTestFinished(() => app.close());
     return app;
   }

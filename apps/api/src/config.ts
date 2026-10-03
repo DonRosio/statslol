@@ -18,9 +18,11 @@ const passwordSchema = z
   .string({ error: MISSING })
   .transform((value) => new Secret(value));
 
-// The database created by compose.yaml, and its superuser, who runs the migrations.
+// The database created by compose.yaml; its superuser, who runs the migrations; and the
+// role of the API, created by docker/postgres/initdb, which can only read and write rows.
 const DATABASE_NAME = 'statslol';
 const DATABASE_SUPERUSER = 'postgres';
+export const DATABASE_APP_ROLE = 'statslol_app';
 
 /** Environment variables read by the API: validation rules and default values. */
 const envSchema = z
@@ -39,20 +41,34 @@ const envSchema = z
         'Expected the format RGAPI-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
       )
       .transform((value) => new Secret(value)),
+    // Riot encrypts PUUIDs with a key specific to each application: to be incremented when
+    // RIOT_API_KEY becomes the key of another application (development key → personal key).
+    RIOT_KEY_GENERATION: z.coerce.number().int().min(1).max(32_767).default(1),
     REDIS_HOST: z.string().default('localhost'),
     REDIS_PORT: servicePortSchema.default(6379),
     REDIS_PASSWORD: passwordSchema,
+    POSTGRES_HOST: z.string().default('localhost'),
+    POSTGRES_PORT: servicePortSchema.default(5432),
+    POSTGRES_APP_PASSWORD: passwordSchema,
   })
   .transform((env) => ({
     host: env.HOST,
     port: env.PORT,
     logLevel: env.LOG_LEVEL,
     riotApiKey: env.RIOT_API_KEY,
+    riotKeyGeneration: env.RIOT_KEY_GENERATION,
     redis: {
       host: env.REDIS_HOST,
       port: env.REDIS_PORT,
       password: env.REDIS_PASSWORD,
     } satisfies RedisConnection,
+    database: {
+      host: env.POSTGRES_HOST,
+      port: env.POSTGRES_PORT,
+      database: DATABASE_NAME,
+      user: DATABASE_APP_ROLE,
+      password: env.POSTGRES_APP_PASSWORD,
+    } satisfies DatabaseConnection,
   }));
 
 /** Environment variables read by `pnpm db:migrate`. */
