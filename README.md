@@ -38,3 +38,5 @@ cp .env.example .env && chmod 600 .env    # then fill in the values
 - `packages/`: code shared between apps
   - `packages/shared`: what both the API and the browser use, e.g. the Zod schemas of a
     Riot ID and of a region, so that both validate user input with the same rules.
+  - `packages/riot-client`: client of the Riot API. Server-only: it sends the API key,
+    so browser code must never import it.

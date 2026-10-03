@@ -1,0 +1,8 @@
+{
+  // Riot API client: server-only (it holds the API key), so Node.js types and no DOM.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src"]
+}
