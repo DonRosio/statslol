@@ -1,0 +1,6 @@
+// Also install updates from the third-party repositories of this server:
+// Caddy (faces the Internet) and Node.js 24.x (runs donrgames.fr).
+Unattended-Upgrade::Origins-Pattern {
+        "site=dl.cloudsmith.io";
+        "site=deb.nodesource.com";
+};
