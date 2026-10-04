@@ -14,6 +14,9 @@ Seen from the Internet (step 4.1 of the roadmap):
   reboots at 04:00 UTC when one of them needs it;
 - `sudo` asks for the password of `ubuntu`.
 
+Inside: 2 GB of swap, and Docker (for statslol), set up so that root in a container is not
+root on the server (step 4.2).
+
 ## Before changing SSH, the firewall or sudo
 
 A mistake there can lock everyone out of the server. Three habits:
@@ -101,15 +104,15 @@ Ubuntu's `unattended-upgrades` installs the security updates of Ubuntu every day
   effect after a reboot. When one needs it (`/var/run/reboot-required`), the server reboots
   by itself at 04:00 UTC: about a minute of downtime.
 - `52unattended-upgrades-third-party`: by default, only Ubuntu's repositories are updated;
-  this adds those of Caddy and Node.js (the websites use the new Node.js when their service
-  restarts). Each new repository goes there too, e.g. Docker's.
+  this adds those of Caddy, Node.js (the other website uses the new Node.js when its service
+  restarts) and Docker. Each new repository goes there too.
 
 ```bash
 sudo install -m 0644 /tmp/server-etc/apt/apt.conf.d/5* /etc/apt/apt.conf.d/
 apt-config dump | grep -i 'Automatic-Reboot'
 # Automatic-Reboot "true", Automatic-Reboot-Time "04:00"
 sudo unattended-upgrade --dry-run --debug 2>&1 | grep -i 'allowed origins'
-# … site=dl.cloudsmith.io, site=deb.nodesource.com
+# … site=dl.cloudsmith.io, site=deb.nodesource.com, site=download.docker.com
 ```
 
 ## 4. sudo asks for a password
@@ -131,7 +134,60 @@ visudo -cf /tmp/server-etc/sudoers.d/99-ubuntu-sudo-password \
 From another terminal, `sudo -k; sudo whoami` asks for the password, then prints `root`. If
 it does not, remove `/etc/sudoers.d/99-ubuntu-sudo-password` from the root shell.
 
-## 5. Check from the Internet
+## 5. Swap
+
+With PostgreSQL next to the websites, a peak of memory use would make Linux kill a process
+(the out-of-memory killer). 2 GB of swap on the disk absorb it, and `vm.swappiness = 10`
+(`99-swappiness.conf`) keeps it for when memory runs out.
+
+```bash
+sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab  # once: swap on again after a reboot
+sudo install -m 0644 /tmp/server-etc/sysctl.d/99-swappiness.conf /etc/sysctl.d/ && sudo sysctl --system | grep swappiness
+free -h  # Swap: 2.0Gi
+```
+
+Only root can read the swap file: it can hold pieces of memory, passwords included.
+
+## 6. Docker
+
+Installed from Docker's own repository (`docker.sources`, as in
+[Docker's documentation](https://docs.docker.com/engine/install/ubuntu/)), with
+`daemon.json` in place before Docker first starts:
+
+- `userns-remap`: root in a container is an unprivileged user of the server (`dockremap`,
+  UIDs from 100000). It must be on before the first container: turning it on later hides
+  the existing images and volumes.
+- `no-new-privileges`: no process of a container can gain privileges (setuid programs).
+- `live-restore`: containers keep running while Docker restarts, e.g. for its automatic
+  update.
+- `log-driver: local`: the logs of each container are rotated (5 files of 20 MB) instead of
+  growing until the disk is full.
+
+```bash
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+gpg --show-keys --with-fingerprint /etc/apt/keyrings/docker.asc
+# 9DC8 5822 9FC7 DD38 854A  E2D8 8D81 803C 0EBF CD88, Docker Release (CE deb): stop otherwise
+sudo install -d /etc/docker && sudo install -m 0644 /tmp/server-etc/docker/daemon.json /etc/docker/
+sudo install -m 0644 /tmp/server-etc/apt/sources.list.d/docker.sources /etc/apt/sources.list.d/
+sudo apt update && sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+```
+
+```bash
+sudo docker run --rm hello-world  # Hello from Docker!
+sudo docker info --format 'security: {{.SecurityOptions}} | logs: {{.LoggingDriver}} | live-restore: {{.LiveRestoreEnabled}}'
+# name=userns and name=no-new-privileges among the options, logs: local, live-restore: true
+grep dockremap /etc/subuid /etc/subgid  # dockremap:100000:65536 in both
+sudo ss -tulpnH | grep -v 127.0.0       # still only sshd and caddy: Docker opened no port
+```
+
+Nobody is in the `docker` group: it gives root without a password (whoever can start a
+container can mount `/` in it), which would undo section 4. Docker commands go through
+`sudo docker`. Remember that ports published by containers bypass UFW (section 2).
+
+## 7. Check from the Internet
 
 ```bash
 # computer (sudo apt install nmap)
@@ -164,4 +220,6 @@ IPv6 (a phone's connection sharing), or list on the server what could answer in 
 - Caddy, installed from its own apt repository, serves both websites. Its admin API listens
   on `127.0.0.1:2019`: any program of the server can change Caddy's configuration through
   it. To restrict at step 4.2, with the configuration of statslol.
-- No swap yet: to add at step 4.2, with PostgreSQL.
+- DNS: the zone of donrgames.fr is managed at OVH. `statslol.donrgames.fr` is an A record
+  to the server's IPv4 address; like donrgames.fr, it has no AAAA record (the websites are
+  reached in IPv4 only).

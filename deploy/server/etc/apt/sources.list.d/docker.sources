@@ -1,0 +1,9 @@
+# Docker's own repository (https://docs.docker.com/engine/install/ubuntu/), for Ubuntu
+# 24.04 "noble". Its key: /etc/apt/keyrings/docker.asc, fingerprint
+# 9DC8 5822 9FC7 DD38 854A  E2D8 8D81 803C 0EBF CD88.
+Types: deb
+URIs: https://download.docker.com/linux/ubuntu
+Suites: noble
+Components: stable
+Architectures: amd64
+Signed-By: /etc/apt/keyrings/docker.asc

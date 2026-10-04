@@ -127,4 +127,4 @@ pnpm then reports that Vite "failed with signal SIGINT": that is expected).
       client's address and header (`apps/web/scripts/check-bundle.ts`), and fails if one
       is there.
 - `deploy/server/`: the files added to the server (VPS) the site runs on, and how to set up
-  a server the same way: SSH with keys only, firewall, automatic updates.
+  a server the same way: SSH with keys only, firewall, automatic updates, swap, Docker.
