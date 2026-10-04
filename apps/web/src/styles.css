@@ -5,24 +5,131 @@
  */
 
 :root {
-  color-scheme: light dark;
+  /* Dark only: the native parts (select lists, scrollbars) follow. */
+  color-scheme: dark;
   font-family: system-ui, sans-serif;
   line-height: 1.5;
 
-  /* Design tokens: colors and sizes used by the components, defined once here. */
-  --color-muted: color-mix(in srgb, currentColor 65%, transparent);
-  --color-border: color-mix(in srgb, currentColor 20%, transparent);
-  --color-surface: color-mix(in srgb, currentColor 6%, transparent);
-  --color-success: #2e9d4f;
-  --color-error: #d93a3a;
-  --color-win: #3b82c4;
-  --color-loss: #d93a3a;
-  --color-remake: grey;
+  /*
+   * Design tokens: every color of the site is defined here, and only here. Components use
+   * the names below (var(--color-...)), never a color of their own: changing the look of the
+   * site, or adding a light theme, is a change of this block. The palette is in the memory
+   * of the project (statslol-palette); a test checks the contrast of each pair of text and
+   * background (src/design-tokens.test.ts).
+   */
+
+  /* The palette. */
+  --color-bg: #221f27;
+  --color-surface: #2e2b35;
+  --color-text: #efedf1;
+  --color-muted: #9c97a6;
+  --color-accent: #ff4d97;
+  /* Text on the accent: dark, more readable than white on the pink. */
+  --color-on-accent: #1a0f16;
+  --color-win: #3a96dc;
+  --color-loss: #ff6b4f;
+
+  /* Derived from the palette. */
+  --color-accent-hover: color-mix(in srgb, var(--color-accent) 85%, white);
+  --color-hover: color-mix(
+    in srgb,
+    var(--color-surface) 88%,
+    var(--color-text)
+  );
+  --color-border: color-mix(in srgb, var(--color-text) 14%, transparent);
+  /* Edge of a field or a button: it has to be seen (3:1 against the background). */
+  --color-border-strong: color-mix(in srgb, var(--color-text) 40%, transparent);
+  /* A block that is loading, or an image that failed: lighter than the surface it is on. */
+  --color-skeleton: color-mix(
+    in srgb,
+    var(--color-surface) 85%,
+    var(--color-text)
+  );
+  --color-error: var(--color-loss);
+  /* Only the status of the API needs a green: it is not part of the palette. */
+  --color-success: #4cc38a;
+
+  /*
+   * A match is tinted with its result. The colors themselves stay for the edge of the card;
+   * the text is a little lighter than the edge, to be readable on the tinted background.
+   */
+  --color-win-bg: color-mix(
+    in srgb,
+    var(--color-surface) 84%,
+    var(--color-win)
+  );
+  --color-loss-bg: color-mix(
+    in srgb,
+    var(--color-surface) 84%,
+    var(--color-loss)
+  );
+  --color-win-text: color-mix(in srgb, var(--color-win) 70%, white);
+  --color-loss-text: color-mix(in srgb, var(--color-loss) 70%, white);
+  --color-win-muted: color-mix(
+    in srgb,
+    var(--color-text) 70%,
+    var(--color-win-bg)
+  );
+  --color-loss-muted: color-mix(
+    in srgb,
+    var(--color-text) 70%,
+    var(--color-loss-bg)
+  );
+  /* A remake counts for nothing: no tint. */
+  --color-remake: var(--color-muted);
+
   --radius: 0.5rem;
 }
 
 body {
   margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+a {
+  color: var(--color-accent);
+}
+
+a:hover {
+  color: var(--color-accent-hover);
+}
+
+/* One ring for everything that can be reached with the keyboard. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+
+/* Fields and buttons: size and spacing are set by each component. */
+button,
+select,
+input {
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: inherit;
+}
+
+button:enabled {
+  cursor: pointer;
+}
+
+button:enabled:hover {
+  background: var(--color-hover);
+}
+
+button:disabled {
+  color: var(--color-muted);
+}
+
+::placeholder {
+  color: var(--color-muted);
+  opacity: 1;
 }
 
 /* The footer stays at the bottom of the window, even on a short page. */
@@ -44,7 +151,7 @@ main {
 /* A grey block in place of content that is loading; it pulses gently. */
 .skeleton {
   border-radius: var(--radius);
-  background: var(--color-surface);
+  background: var(--color-skeleton);
   animation: skeleton-pulse 1.5s ease-in-out infinite;
 }
 

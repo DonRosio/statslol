@@ -1,4 +1,4 @@
-/* A colored dot before the text: grey while checking, green when up, red when down. */
+/* A colored dot before the text: muted while checking, green when up, red when down. */
 .status::before {
   content: '';
   display: inline-block;
@@ -6,7 +6,7 @@
   height: 0.6em;
   margin-right: 0.5em;
   border-radius: 50%;
-  background: grey;
+  background: var(--color-muted);
 }
 
 .status[data-status='success']::before {

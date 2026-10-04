@@ -105,7 +105,9 @@ pnpm then reports that Vite "failed with signal SIGINT": that is expected).
     - `design/wireframes/`: hand-drawn wireframes of the pages.
     - Styles: each component has its own CSS Module (`Component.module.css`, class names
       made unique by Vite); `src/styles.css` holds the page-wide rules and the design
-      tokens (CSS variables: colors, radius).
+      tokens (CSS variables: the palette, the colors derived from it, radius). The
+      components use no color of their own, and `scripts/design-tokens.test.ts` checks it,
+      along with the contrast of each pair of text and background.
     - Tests run in jsdom (a browser simulated in Node.js) with Testing Library; MSW plays
       the API. `e2e/`: end-to-end tests, run by `pnpm test:e2e` with Playwright on the
       production build, in Chromium; the tests play the API and Data Dragon, so no request

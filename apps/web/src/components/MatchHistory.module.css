@@ -24,15 +24,26 @@
   border: 1px solid var(--color-border);
   border-left: 4px solid var(--result-color);
   border-radius: var(--radius);
+  background: var(--result-bg);
+  /* By default a remake: no tint. */
   --result-color: var(--color-remake);
+  --result-bg: var(--color-surface);
+  --result-text: var(--color-muted);
+  --result-muted: var(--color-muted);
 }
 
 .match[data-result='win'] {
   --result-color: var(--color-win);
+  --result-bg: var(--color-win-bg);
+  --result-text: var(--color-win-text);
+  --result-muted: var(--color-win-muted);
 }
 
 .match[data-result='loss'] {
   --result-color: var(--color-loss);
+  --result-bg: var(--color-loss-bg);
+  --result-text: var(--color-loss-text);
+  --result-muted: var(--color-loss-muted);
 }
 
 .match p {
@@ -46,7 +57,7 @@
   width: 48px;
   height: 48px;
   border-radius: var(--radius);
-  background: var(--color-surface);
+  background: var(--color-skeleton);
 }
 
 /* 4 columns of text side by side; on a phone, 2 rows of 2. */
@@ -65,7 +76,7 @@
 
 .result {
   font-weight: bold;
-  color: var(--result-color);
+  color: var(--result-text);
 }
 
 .strong {
@@ -74,7 +85,7 @@
 
 .muted {
   font-size: 0.875rem;
-  color: var(--color-muted);
+  color: var(--result-muted);
 }
 
 .more {
