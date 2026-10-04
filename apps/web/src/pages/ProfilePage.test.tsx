@@ -12,10 +12,17 @@ function imageSources() {
   return [...document.querySelectorAll('img')].map((image) => image.src);
 }
 
+const SYLAS =
+  'https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/Sylas.png';
+const MONKEY_KING =
+  'https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/MonkeyKing.png';
+// The profile icon, then the 2 champions of the summary, then the 2 of the matches.
 const IMAGE_SOURCES = [
   'https://ddragon.leagueoflegends.com/cdn/16.19.1/img/profileicon/6.png',
-  'https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/Sylas.png',
-  'https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/MonkeyKing.png',
+  SYLAS,
+  MONKEY_KING,
+  SYLAS,
+  MONKEY_KING,
 ];
 
 describe('profile page', () => {
@@ -159,29 +166,33 @@ describe('profile page', () => {
     expect(match.querySelector('img')).toBeNull();
   });
 
-  it('loads older matches with "Show more", until the last page', async () => {
+  it('loads the second page by itself, for the summary, then older matches with "Show more"', async () => {
     mockPlayerApi({
       matches: matchPages({
         0: {
-          matches: [matchSummary('KR_4'), matchSummary('KR_3')],
+          matches: [matchSummary('KR_5'), matchSummary('KR_4')],
           nextStart: 2,
         },
-        // KR_5 was played meanwhile: KR_3 comes again.
+        // KR_6 was played meanwhile: KR_4 comes again.
         2: {
-          matches: [matchSummary('KR_3'), matchSummary('KR_2')],
-          nextStart: null,
+          matches: [matchSummary('KR_4'), matchSummary('KR_3')],
+          nextStart: 4,
         },
+        4: { matches: [matchSummary('KR_2')], nextStart: null },
       }),
     });
     renderPage(PLAYER_PAGE_PATH);
-    expect(await findMatches()).toHaveLength(2);
 
-    await userEvent
-      .setup()
-      .click(screen.getByRole('button', { name: 'Show more' }));
-
+    // Without a click: the page after the first one.
     await waitFor(() => {
       expect(screen.getAllByRole('listitem')).toHaveLength(3);
+    });
+    await userEvent
+      .setup()
+      .click(await screen.findByRole('button', { name: 'Show more' }));
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('listitem')).toHaveLength(4);
     });
     expect(screen.queryByRole('button', { name: 'Show more' })).toBeNull();
   });

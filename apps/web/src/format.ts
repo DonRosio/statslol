@@ -128,3 +128,17 @@ export function teamName(teamId: number): string {
   if (teamId === 200) return 'Red team';
   return 'Team';
 }
+
+/** An average with 1 decimal: "5.2". */
+export function formatAverage(value: number): string {
+  return value.toFixed(1);
+}
+
+/** The average kills, deaths and assists of several games: "4.2 / 5.1 / 7.3". */
+export function formatAverageScore(
+  kills: number,
+  deaths: number,
+  assists: number,
+): string {
+  return [kills, deaths, assists].map(formatAverage).join(' / ');
+}

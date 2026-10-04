@@ -92,7 +92,9 @@ pnpm then reports that Vite "failed with signal SIGINT": that is expected).
       shows whether the API answers (`/api/health`).
     - `/players/:region/:name/:tag`: profile page of a player, e.g.
       `/players/kr/Hide%20on%20bush/KR1`: icon, level, solo and flex ranks, then the match
-      history, 10 matches at a time ("Show more"). A match shows its result and queue, the
+      history, 10 matches at a time ("Show more"). Above it, a summary of the last 20 games
+      (the second page is loaded by itself): the 3 most played champions with their record,
+      win rate and average score, the win rate as a ring, and the average KDA. A match shows its result and queue, the
       champion with its spells and runes, the score, the 7 item slots, and the players, each
       linked to their profile (in Arena, the player's team). Images (profile icon, champions,
       spells, runes, items) come from Data Dragon; without them, the page shows names and

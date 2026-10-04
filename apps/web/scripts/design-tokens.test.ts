@@ -189,7 +189,16 @@ describe('contrast of the palette', () => {
       'color-on-accent',
       'color-accent-hover',
     ],
+    ['a link in the panel', 'color-accent', 'color-surface'],
+    [
+      'a link in the panel under the mouse',
+      'color-accent-hover',
+      'color-surface',
+    ],
+    ['text in an inset', 'color-text', 'color-inset'],
+    ['secondary text in an inset', 'color-muted', 'color-inset'],
     ['an error', 'color-error', 'color-bg'],
+    ['an error in the panel', 'color-error', 'color-surface'],
     ['the status "up"', 'color-success', 'color-bg'],
     ['"Victory"', 'color-win-text', 'color-win-bg'],
     ['"Defeat"', 'color-loss-text', 'color-loss-bg'],
@@ -207,6 +216,13 @@ describe('contrast of the palette', () => {
   it.each([
     ['the color of a win', 'color-win', 'color-bg'],
     ['the color of a loss', 'color-loss', 'color-bg'],
+    ['the color of a win in the panel', 'color-win', 'color-surface'],
+    ['the color of a loss in the panel', 'color-loss', 'color-surface'],
+    [
+      'the edge of a field in the panel',
+      'color-border-strong',
+      'color-surface',
+    ],
     ['the edge of a field', 'color-border-strong', 'color-bg'],
     ['the edge of a field on a card', 'color-border-strong', 'color-surface'],
   ])('shows %s (3:1)', (_what, foreground, background) => {
@@ -229,5 +245,54 @@ describe('contrast of the palette', () => {
           ) as unknown as Color);
 
     expect(contrast(front, behind)).toBeGreaterThanOrEqual(3);
+  });
+});
+
+// The panel and the boxes let the background show through. Whatever is behind a text, it has
+// to stay readable: checked over the lightest parts of the background images.
+describe('contrast over the background image', () => {
+  /** A token that mixes a color with `transparent`, laid over `behind`. */
+  function glass(token: string, behind: Color): Color {
+    const value = tokens.get(token) ?? '';
+    const parts =
+      /^color-mix\(in srgb,\s*var\(--([\w-]+)\)\s+(\d+(?:\.\d+)?)%,\s*transparent\)$/.exec(
+        value,
+      );
+    if (parts === null) throw new Error(`--${token} is not see-through`);
+    const share = Number(parts[2]) / 100;
+    const front = color(parts[1] ?? '');
+    return [0, 1, 2].map((index) =>
+      Math.round(
+        (front[index] ?? 0) * share + (behind[index] ?? 0) * (1 - share),
+      ),
+    ) as unknown as Color;
+  }
+
+  // The brightest part of the background, which is behind the header of a profile.
+  const panel = () => glass('color-panel', color('image-glow'));
+  const box = () => glass('color-box', panel());
+
+  it.each([
+    ['text', 'color-text'],
+    ['secondary text', 'color-muted'],
+    ['a link', 'color-accent'],
+  ])('keeps %s readable on the panel over the glow', (_what, foreground) => {
+    expect(contrast(color(foreground), panel())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each([
+    ['text', 'color-text'],
+    ['secondary text', 'color-muted'],
+    ['a win rate above half', 'color-win-text'],
+    ['a win rate under half', 'color-loss-text'],
+  ])('keeps %s readable in a box over the glow', (_what, foreground) => {
+    expect(contrast(color(foreground), box())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each([
+    ['the wins of the ring', 'color-win'],
+    ['the losses of the ring', 'color-loss'],
+  ])('shows %s in a box over the glow (3:1)', (_what, foreground) => {
+    expect(contrast(color(foreground), box())).toBeGreaterThanOrEqual(3);
   });
 });

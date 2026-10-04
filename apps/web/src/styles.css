@@ -19,11 +19,12 @@
    */
 
   /* The palette. */
-  --color-bg: #221f27;
-  --color-surface: #2e2b35;
+  --color-bg: #121020;
+  /* The panel that holds the content of every page, and the cards of the header. */
+  --color-surface: #2d2c33;
   --color-text: #efedf1;
   --color-muted: #9c97a6;
-  --color-accent: #ff4d97;
+  --color-accent: #ff94c2;
   /* Text on the accent: dark, more readable than white on the pink. */
   --color-on-accent: #1a0f16;
   --color-win: #3a96dc;
@@ -78,13 +79,54 @@
   /* A remake counts for nothing: no tint. */
   --color-remake: var(--color-muted);
 
-  --radius: 0.5rem;
+  /* The panel lets the background show through a little. */
+  --color-panel: color-mix(in srgb, var(--color-surface) 84%, transparent);
+  /* Something set into the panel (a rank, a match that was a remake): darker than it. */
+  --color-inset: color-mix(in srgb, var(--color-surface) 65%, var(--color-bg));
+
+  /* A box of the panel (the ranks, the history): the inset color, a little see-through. */
+  --color-box: color-mix(in srgb, var(--color-inset) 72%, transparent);
+  /* A light edge on the top of a box, and a soft light fading down from it. */
+  --color-highlight-edge: color-mix(in srgb, white 13%, transparent);
+  --highlight: linear-gradient(
+    to bottom,
+    color-mix(in srgb, white 6%, transparent),
+    transparent 3rem
+  );
+
+  /*
+   * The color of the brightest part of the background image (src/assets), which no component
+   * sets: only here so that the contrast of the text over it is checked
+   * (scripts/design-tokens.test.ts).
+   */
+  --image-glow: #35315b;
+
+  /* Small roundings: the corners are rounded, just a little. */
+  --radius: 0.25rem;
+  --radius-panel: 0.5rem;
+  /* Half the height of what it rounds is enough: the ends are arcs of a circle. */
+  --radius-pill: 999px;
 }
 
 body {
   margin: 0;
   background: var(--color-bg);
   color: var(--color-text);
+}
+
+/*
+ * The background: a glow with soft rays, lighter in the middle and fading to the color of
+ * the site (a picture, not an animation). It stays in place while the page scrolls, behind
+ * everything.
+ */
+html::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--color-bg) url('./assets/glow.jpg') center top / cover
+    no-repeat;
 }
 
 a {
@@ -139,13 +181,21 @@ button:disabled {
   min-height: 100dvh;
 }
 
+/* The content of every page sits in one panel, in the middle of the window. */
 main {
   flex: 1 0 auto;
   box-sizing: border-box;
-  width: 100%;
-  max-width: 72rem;
-  margin: 0 auto;
-  padding: 1rem;
+  width: min(64rem, 100% - 1rem);
+  margin: 0.75rem auto;
+  padding: 1.25rem;
+  border-radius: var(--radius-panel);
+  background: var(--color-panel);
+}
+
+@media (width < 36rem) {
+  main {
+    padding: 0.75rem;
+  }
 }
 
 /* A grey block in place of content that is loading; it pulses gently. */

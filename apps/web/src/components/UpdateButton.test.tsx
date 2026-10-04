@@ -6,7 +6,7 @@ import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { failure, matchPages, mockPlayerApi } from '../test-api.ts';
 import { matchSummary, PLAYER_PAGE_PATH, PROFILE } from '../test-data.ts';
 import { recordRequests } from '../test-server.ts';
-import { findMatches, renderPage } from '../test-utils.tsx';
+import { renderPage } from '../test-utils.tsx';
 
 /** Stops the clock of the page (Date only: the other timers still run). */
 function freezeClock() {
@@ -49,31 +49,36 @@ describe('"Update" button', () => {
     expect(updateButton()).toHaveProperty('disabled', true);
   });
 
-  it('starts again from the first page of matches, without asking for the older ones', async () => {
+  it('starts again from the first pages of matches, without asking for the older ones', async () => {
     mockPlayerApi({
       matches: matchPages({
-        0: { matches: [matchSummary('KR_4')], nextStart: 1 },
-        1: { matches: [matchSummary('KR_3')], nextStart: null },
+        0: { matches: [matchSummary('KR_5')], nextStart: 1 },
+        1: { matches: [matchSummary('KR_4')], nextStart: 2 },
+        2: { matches: [matchSummary('KR_3')], nextStart: null },
       }),
     });
     renderPage(PLAYER_PAGE_PATH);
-    await findMatches();
+    // The second page comes by itself, the third with "Show more".
     await userEvent
       .setup()
-      .click(screen.getByRole('button', { name: 'Show more' }));
+      .click(await screen.findByRole('button', { name: 'Show more' }));
     await waitFor(() => {
-      expect(screen.getAllByRole('listitem')).toHaveLength(2);
+      expect(screen.getAllByRole('listitem')).toHaveLength(3);
     });
     const requests = recordRequests();
 
     await clickUpdate();
 
+    // The first page, and the second one again for the summary: not the third.
     await waitFor(() => {
-      expect(screen.getAllByRole('listitem')).toHaveLength(1);
+      expect(requests.filter((path) => path.endsWith('/matches'))).toHaveLength(
+        2,
+      );
     });
-    expect(requests.filter((path) => path.endsWith('/matches'))).toEqual([
-      '/api/v1/players/kr/Hide%20on%20bush/KR1/matches',
-    ]);
+    await waitFor(() => {
+      expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    });
+    expect(screen.getByRole('button', { name: 'Show more' })).toBeDefined();
   });
 
   it('counts down the delay given by the API when the player was updated recently', async () => {

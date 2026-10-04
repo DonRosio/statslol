@@ -45,28 +45,37 @@ test('finds a player from the home page, then shows their profile', async ({
 
   // The profile icon and the 2 champions, all displayed by the browser.
   const images = page.locator('img');
-  await expect(images).toHaveCount(3);
+  // The profile icon, and the 2 champions twice: in the summary, and in the matches.
+  await expect(images).toHaveCount(5);
   for (const image of await images.all()) {
     await expect(image).toHaveJSProperty('naturalWidth', 1);
   }
 });
 
-test('loads older matches with "Show more"', async ({ page, api }) => {
+test('loads the second page by itself, and older matches with "Show more"', async ({
+  page,
+  api,
+}) => {
   knowPlayer(api, {
-    matches: [matchSummary('KR_4'), matchSummary('KR_3')],
+    matches: [matchSummary('KR_5'), matchSummary('KR_4')],
     nextStart: 2,
   });
   api.answer(`${PLAYER_API_PATH}/matches?start=2`, {
     matches: [ARENA_MATCH],
+    nextStart: 4,
+  });
+  api.answer(`${PLAYER_API_PATH}/matches?start=4`, {
+    matches: [matchSummary('KR_1')],
     nextStart: null,
   });
 
   // Opened directly: the preview server answers the app for any page URL.
   await page.goto(PLAYER_PAGE_PATH);
-  await expect(page.getByRole('listitem')).toHaveCount(2);
+  // The second page comes without a click: the summary counts the last 20 games.
+  await expect(page.getByRole('listitem')).toHaveCount(3);
   await page.getByRole('button', { name: 'Show more' }).click();
 
-  await expect(page.getByRole('listitem')).toHaveCount(3);
+  await expect(page.getByRole('listitem')).toHaveCount(4);
   await expect(page.getByRole('button', { name: 'Show more' })).toHaveCount(0);
 });
 
@@ -84,6 +93,8 @@ test('shows names and empty squares when Data Dragon is unreachable', async ({
 
   await page.goto(PLAYER_PAGE_PATH);
 
+  // The profile icon and the 2 champions: the browser asks for each image once, even if it
+  // is shown twice (summary and matches).
   await expect.poll(() => failedImages).toBe(3);
   await expect(page.locator('img')).toHaveCount(0);
   await expect(page.getByRole('listitem').nth(0)).toContainText('Sylas');
@@ -147,9 +158,11 @@ test('shows the spells, runes, items and players of a match, and opens a player 
     match.getByRole('group', { name: 'Runes' }).getByRole('img'),
   ).toHaveCount(2);
   await expect(match.getByRole('img', { name: 'Trinity Force' })).toBeVisible();
-  await expect(match.getByRole('group', { name: 'Red team' })).toContainText(
-    'Rival 9',
-  );
+  await expect(
+    match
+      .getByRole('group', { name: 'Red team' })
+      .getByRole('link', { name: 'Rival 9' }),
+  ).toBeVisible();
   // The champion, 2 spells, 2 runes, 2 items and 10 players: all displayed by the browser.
   const images = match.locator('img');
   await expect(images).toHaveCount(17);

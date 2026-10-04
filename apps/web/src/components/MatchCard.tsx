@@ -31,10 +31,10 @@ import { queueName } from '../queues.ts';
 import { GameImage } from './GameImage.tsx';
 import styles from './MatchCard.module.css';
 
-const CHAMPION_IMAGE_SIZE = 56;
+const CHAMPION_IMAGE_SIZE = 42;
 // Spells, runes and items: 2 rows of them are as high as the champion's image.
-const SLOT_SIZE = 27;
-const TEAMMATE_IMAGE_SIZE = 18;
+const SLOT_SIZE = 20;
+const TEAMMATE_IMAGE_SIZE = 20;
 
 /**
  * The slots of the inventory in the order they are shown: 4 columns, the 3 first items then
@@ -94,15 +94,23 @@ export function MatchCard({ match, player, staticData, now }: MatchCardProps) {
       </div>
 
       <div className={styles.stats}>
-        {/* Data Dragon's name ("Wukong"), or else Riot's internal one ("MonkeyKing"). */}
-        <p className={styles.strong}>{champion?.name ?? match.championName}</p>
-        {position !== null && <p className={styles.muted}>{position}</p>}
-        <p className={styles.strong}>
-          <span className="visually-hidden">Kills, deaths, assists: </span>
-          {match.kills} / {match.deaths} / {match.assists}
+        <p>
+          {/* Data Dragon's name ("Wukong"), or else Riot's internal one ("MonkeyKing"). */}
+          <span className={styles.strong}>
+            {champion?.name ?? match.championName}
+          </span>
+          {position !== null && (
+            <span className={styles.muted}>{position}</span>
+          )}
         </p>
-        <p className={styles.muted}>
-          {formatKdaRatio(match.kills, match.deaths, match.assists)} KDA
+        <p>
+          <span className={styles.strong}>
+            <span className="visually-hidden">Kills, deaths, assists: </span>
+            {match.kills} / {match.deaths} / {match.assists}
+          </span>
+          <span className={styles.muted}>
+            {formatKdaRatio(match.kills, match.deaths, match.assists)} KDA
+          </span>
         </p>
         <p>
           {match.creepScore} CS (
@@ -237,9 +245,9 @@ function Items({
 }
 
 /**
- * The other players of the match, a column for each side, with a link to each profile. In
- * Arena, where there are 18 players, only the player's own team: the others are for the
- * details of the match.
+ * The players of the match, a row of champions for each side, each a link to the profile
+ * of the player (their name is in the tooltip). In Arena, where there are 18 players, only
+ * the player's own team: the others are for the details of the match.
  */
 function Players({
   match,
@@ -308,39 +316,46 @@ function Teammate({
       ? undefined
       : findChampion(staticData, participant.championId);
   const { riotId } = participant;
+  // The name tells who this is: the icon is only the champion they played.
   const name = riotId === null ? participant.championName : riotId.gameName;
+  const fullName =
+    riotId === null ? name : `${riotId.gameName}#${riotId.tagLine}`;
+  const icon = (
+    <GameImage
+      src={
+        staticData === undefined || champion === undefined
+          ? null
+          : championImageUrl(staticData.version, champion)
+      }
+      size={TEAMMATE_IMAGE_SIZE}
+      className={styles.teammateImage}
+      fallback={<span className={styles.teammateImage} />}
+    />
+  );
+  // The others are links to their page; the player whose page this is, and a player Riot
+  // does not name, are only marked.
+  if (riotId !== null && !participant.isPlayer) {
+    return (
+      <Link
+        className={styles.teammate}
+        to={playerPath({ region, name: riotId.gameName, tag: riotId.tagLine })}
+        title={fullName}
+        aria-label={name}
+      >
+        {icon}
+      </Link>
+    );
+  }
   return (
-    <p
+    <span
       className={styles.teammate}
-      // The player whose page this is: the others are links to their page.
+      role="img"
+      aria-label={name}
       aria-current={participant.isPlayer ? 'true' : undefined}
       data-player={participant.isPlayer}
+      title={fullName}
     >
-      <GameImage
-        src={
-          staticData === undefined || champion === undefined
-            ? null
-            : championImageUrl(staticData.version, champion)
-        }
-        size={TEAMMATE_IMAGE_SIZE}
-        className={styles.teammateImage}
-        fallback={<span className={styles.teammateImage} />}
-      />
-      {riotId === null || participant.isPlayer ? (
-        <span className={styles.teammateName}>{name}</span>
-      ) : (
-        <Link
-          className={styles.teammateName}
-          to={playerPath({
-            region,
-            name: riotId.gameName,
-            tag: riotId.tagLine,
-          })}
-          title={`${riotId.gameName}#${riotId.tagLine}`}
-        >
-          {name}
-        </Link>
-      )}
-    </p>
+      {icon}
+    </span>
   );
 }

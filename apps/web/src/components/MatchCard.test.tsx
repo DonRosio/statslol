@@ -148,20 +148,18 @@ describe('players of the match', () => {
 
     const blue = within(card).getByRole('group', { name: 'Blue team' });
     const red = within(card).getByRole('group', { name: 'Red team' });
-    expect(within(blue).getAllByText(/Hide on bush|Ally \d/)).toHaveLength(5);
-    expect(within(red).getAllByText(/Rival \d/)).toHaveLength(5);
+    expect(blue.children).toHaveLength(5);
+    expect(red.children).toHaveLength(5);
     // The player whose page this is: marked, and not a link to the page it is on.
-    const self = within(blue).getByText('Hide on bush');
-    expect(self.closest('p')?.getAttribute('aria-current')).toBe('true');
+    const self = within(blue).getByRole('img', { name: 'Hide on bush' });
+    expect(self.getAttribute('aria-current')).toBe('true');
+    expect(self.getAttribute('title')).toBe('Hide on bush#KR1');
     expect(
       within(blue).queryByRole('link', { name: 'Hide on bush' }),
     ).toBeNull();
-    expect(
-      within(card)
-        .getAllByRole('link')
-        .filter((link) => link.closest('[aria-current]') !== null),
-    ).toHaveLength(0);
     // The others: a link to their profile, on the same server, with their tag on hover.
+    expect(within(blue).getAllByRole('link')).toHaveLength(4);
+    expect(within(red).getAllByRole('link')).toHaveLength(5);
     const ally = within(blue).getByRole('link', { name: 'Ally 1' });
     expect(ally.getAttribute('href')).toBe('/players/kr/Ally%201/KR1');
     expect(ally.getAttribute('title')).toBe('Ally 1#KR1');
@@ -219,7 +217,7 @@ describe('players of the match', () => {
     );
 
     const blue = within(card).getByRole('group', { name: 'Blue team' });
-    expect(within(blue).getByText('MonkeyKing')).toBeDefined();
+    expect(within(blue).getByRole('img', { name: 'MonkeyKing' })).toBeDefined();
     expect(within(blue).queryByRole('link', { name: 'MonkeyKing' })).toBeNull();
     expect(within(blue).getAllByRole('link')).toHaveLength(3);
   });
@@ -234,7 +232,7 @@ describe('players of the match', () => {
       name: 'Team of the player',
     });
     expect(
-      [...team.querySelectorAll('p')].map((entry) => entry.textContent),
+      [...team.children].map((entry) => entry.getAttribute('aria-label')),
     ).toEqual(['Duelist 6', 'Duelist 7', 'Duelist 8']);
     expect(within(card).queryByRole('group', { name: 'Blue team' })).toBeNull();
     expect(within(card).queryByRole('group', { name: 'Red team' })).toBeNull();

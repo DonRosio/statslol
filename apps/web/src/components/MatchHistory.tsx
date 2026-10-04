@@ -1,20 +1,23 @@
 import type { PlayerParams } from '@statslol/shared';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { useId } from 'react';
+import { useEffect, useId } from 'react';
 
 import { matchHistoryQuery, uniqueMatches } from '../api/players.ts';
 import { describeError } from '../api/errors.ts';
 import { useStaticData } from '../api/static-data.ts';
+import { RECENT_GAMES, recentStats } from '../recent-stats.ts';
 import { ErrorMessage } from './ErrorMessage.tsx';
 import styles from './MatchHistory.module.css';
 import { MatchCard } from './MatchCard.tsx';
+import { RecentSummary } from './RecentSummary.tsx';
 
 /** The latest matches of a player, and a button to load older ones. */
 export function MatchHistory({ player }: { player: PlayerParams }) {
   const headingId = useId();
   return (
-    <section aria-labelledby={headingId}>
-      <h2 id={headingId} className={styles.title}>
+    <section aria-labelledby={headingId} className={styles.box}>
+      {/* The summary and the matches say what this is: the title is only for screen readers. */}
+      <h2 id={headingId} className="visually-hidden">
         Match history
       </h2>
       <MatchList player={player} />
@@ -25,6 +28,24 @@ export function MatchHistory({ player }: { player: PlayerParams }) {
 function MatchList({ player }: { player: PlayerParams }) {
   const history = useInfiniteQuery(matchHistoryQuery(player));
   const staticData = useStaticData();
+
+  // The summary counts the last 20 games: the second page is loaded without waiting for
+  // "Show more". Only when nothing else is loading: after an update, the first page is
+  // fetched again first, and this must not cut it short. Once: if the second page fails,
+  // the button below tries again.
+  const { hasNextPage, isFetching, isFetchNextPageError, fetchNextPage } =
+    history;
+  const pageCount = history.data?.pages.length ?? 0;
+  useEffect(() => {
+    if (
+      pageCount === 1 &&
+      hasNextPage &&
+      !isFetching &&
+      !isFetchNextPageError
+    ) {
+      void fetchNextPage();
+    }
+  }, [pageCount, hasNextPage, isFetching, isFetchNextPageError, fetchNextPage]);
 
   if (history.data === undefined) {
     return history.error === null ? (
@@ -41,8 +62,17 @@ function MatchList({ player }: { player: PlayerParams }) {
     );
   }
   const matches = uniqueMatches(history.data.pages);
+  // The 20 games are there, or there are no more to wait for.
+  const summaryReady =
+    matches.length >= RECENT_GAMES || !hasNextPage || isFetchNextPageError;
   return (
     <>
+      {matches.length > 0 &&
+        (summaryReady ? (
+          <RecentSummary stats={recentStats(matches)} staticData={staticData} />
+        ) : (
+          <SummaryPlaceholder />
+        ))}
       {matches.length === 0 ? (
         <p>No matches yet.</p>
       ) : (
@@ -78,6 +108,16 @@ function MatchList({ player }: { player: PlayerParams }) {
         </button>
       )}
     </>
+  );
+}
+
+/** A grey block in place of the summary, while the second page of matches loads. */
+function SummaryPlaceholder() {
+  return (
+    <div
+      className={['skeleton', styles.summaryPlaceholder].join(' ')}
+      aria-hidden="true"
+    />
   );
 }
 
