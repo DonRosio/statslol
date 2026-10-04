@@ -41,12 +41,12 @@ test('says when no player has the Riot ID, with the search form ready to correct
   await expect(
     page.getByRole('heading', { name: 'Player not found' }),
   ).toBeVisible();
-  await expect(page.getByRole('textbox', { name: 'Riot ID' })).toHaveValue(
-    'Hide on bush#KR1',
-  );
-  await expect(page.getByRole('combobox', { name: 'Region' })).toHaveValue(
-    'kr',
-  );
+  await expect(
+    page.getByRole('textbox', { name: 'Riot ID', exact: true }),
+  ).toHaveValue('Hide on bush#KR1');
+  await expect(
+    page.getByRole('combobox', { name: 'Region', exact: true }),
+  ).toHaveValue('kr');
 });
 
 test.describe('"Update" button', () => {

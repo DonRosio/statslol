@@ -19,3 +19,42 @@
   margin: 0;
   color: var(--color-error);
 }
+
+/* The small version, in the header: one line, and the error floats under the field. */
+.compact {
+  position: relative;
+  display: flex;
+  gap: 0.25rem;
+  margin: 0;
+}
+
+.compact input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.compact :is(select, input, button) {
+  padding: 0.25rem 0.5rem;
+  font: inherit;
+}
+
+.compact button {
+  display: inline-flex;
+  align-items: center;
+}
+
+.compact .error {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(100%, 20rem);
+  margin-top: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius);
+  background: Canvas;
+  font-size: 0.875rem;
+}

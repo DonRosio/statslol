@@ -97,3 +97,21 @@ test('shows the "not found" page for a URL the API would refuse', async ({
     page.getByRole('heading', { name: 'Page not found' }),
   ).toBeVisible();
 });
+
+test('looks up another player from the header of a profile page', async ({
+  page,
+  api,
+}) => {
+  api.answer('/api/health', { status: 'ok' });
+  knowPlayer(api);
+
+  await page.goto(PLAYER_PAGE_PATH);
+  const search = page.getByRole('search', { name: 'Look up another player' });
+  // The page asked for Korea: the search starts there.
+  await expect(search.getByRole('combobox')).toHaveValue('kr');
+
+  await search.getByRole('textbox').fill('Faker');
+  await search.getByRole('button', { name: 'Look up' }).click();
+  await expect(search.getByRole('alert')).toBeVisible();
+  await expect(page).toHaveURL(PLAYER_PAGE_PATH);
+});
