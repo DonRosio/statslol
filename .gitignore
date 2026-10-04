@@ -17,6 +17,10 @@ build/
 
 # --- Tests -----------------------------------------------------------------
 coverage/
+# Playwright: results and recordings of the last run
+test-results/
+playwright-report/
+blob-report/
 
 # --- Logs ------------------------------------------------------------------
 *.log

@@ -18,6 +18,8 @@ pnpm install                              # also enables the secret-scanning pre
 cp .env.example .env && chmod 600 .env    # then fill in the values
 docker compose up --detach --wait         # starts PostgreSQL and Redis (see compose.yaml)
 pnpm db:migrate                           # creates the tables
+pnpm --filter @statslol/web exec playwright install --only-shell chromium
+                                          # browser of the end-to-end tests (~110 MB)
 ```
 
 The PostgreSQL passwords of `.env` are set when the database is created. To change them, or to
@@ -39,6 +41,7 @@ pnpm then reports that Vite "failed with signal SIGINT": that is expected).
 | `pnpm typecheck`   | Type-checks the root configs and every package                          |
 | `pnpm test`        | Runs the tests of every package with Vitest                             |
 | `pnpm test:db`     | Runs the tests that need PostgreSQL (`docker compose up` first)         |
+| `pnpm test:e2e`    | Builds the web app, then tests it in a real browser (Playwright)        |
 | `pnpm db:generate` | Writes the migration for the changes of `apps/api/src/db/schema.ts`     |
 | `pnpm db:migrate`  | Applies the migrations the database has not run yet                     |
 
@@ -85,10 +88,17 @@ pnpm then reports that Vite "failed with signal SIGINT": that is expected).
       `packages/shared`): an invalid one is reported at once, without any request. Also
       shows whether the API answers (`/api/health`).
     - `/players/:region/:name/:tag`: profile page of a player, e.g.
-      `/players/kr/Hide%20on%20bush/KR1` (for now, only whose profile it is). A URL the API
-      would refuse (unknown region, invalid name or tag) shows the "not found" page.
+      `/players/kr/Hide%20on%20bush/KR1`: icon, level, solo and flex ranks, then the match
+      history, 10 matches at a time ("Show more"). Images (profile icon, champions) come
+      from Data Dragon; without them, the page shows names and empty squares instead. A URL
+      the API would refuse (unknown region, invalid name or tag) shows the "not found" page.
+    - Styles: each component has its own CSS Module (`Component.module.css`, class names
+      made unique by Vite); `src/styles.css` holds the page-wide rules and the design
+      tokens (CSS variables: colors, radius).
     - Tests run in jsdom (a browser simulated in Node.js) with Testing Library; MSW plays
-      the API.
+      the API. `e2e/`: end-to-end tests, run by `pnpm test:e2e` with Playwright on the
+      production build, in Chromium; the tests play the API and Data Dragon, so no request
+      leaves the machine.
 - `packages/`: code shared between apps
   - `packages/shared`: what both the API and the browser use, e.g. the Zod schemas of a
     Riot ID, of a region and of the parts of a player URL, so that both validate user

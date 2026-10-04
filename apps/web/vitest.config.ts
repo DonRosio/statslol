@@ -10,6 +10,8 @@ export default mergeConfig(
       // Components are rendered in jsdom, a browser simulated in Node.js.
       environment: 'jsdom',
       setupFiles: ['src/test-setup.ts'],
+      // Not e2e/: those tests run in a real browser, with Playwright (pnpm test:e2e).
+      include: ['src/**/*.test.{ts,tsx}'],
     },
   }),
 );

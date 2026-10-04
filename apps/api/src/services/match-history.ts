@@ -116,6 +116,10 @@ function summarize(match: RiotMatch, puuid: string): MatchSummary | null {
       : player.win
         ? 'win'
         : 'loss',
+    placement:
+      player.placement === undefined || player.placement === 0
+        ? null
+        : player.placement,
     championId: player.championId,
     championName: player.championName,
     kills: player.kills,

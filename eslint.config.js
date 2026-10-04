@@ -22,7 +22,8 @@ export default defineConfig(
   {
     // Rules of React (e.g. hooks called in the same order at each render, effect
     // dependencies listed): the stable preset of the React team's plugin.
-    files: ['apps/web/**/*.{ts,tsx}'],
+    // Only the app's code: Playwright's fixtures call a `use()` that is not React's hook.
+    files: ['apps/web/src/**/*.{ts,tsx}'],
     extends: [reactHooks.configs.flat.recommended],
   },
   {

@@ -105,6 +105,9 @@ const riotParticipantSchema = z.looseObject({
   win: z.boolean(),
   // A "remake": the game was abandoned in its first minutes and counts for nothing.
   gameEndedInEarlySurrender: z.boolean(),
+  // Place of the player's team in modes ranked by place (Arena: 1 to 6), 0 in the others.
+  // Missing in matches older than Arena (2023).
+  placement: z.number().int().nonnegative().optional(),
 });
 
 export const riotMatchSchema = z.looseObject({

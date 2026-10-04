@@ -1,0 +1,30 @@
+.header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Also the empty square shown when the icon cannot be loaded. */
+.icon {
+  flex: none;
+  display: block;
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.riotId {
+  margin: 0;
+  /* Smaller on a phone: 1.5rem at 375 px wide, up to 2rem. */
+  font-size: clamp(1.5rem, 6.4vw, 2rem);
+  line-height: 1.2;
+  /* A long Riot ID without spaces still wraps on a narrow screen. */
+  overflow-wrap: anywhere;
+}
+
+.details {
+  margin: 0;
+  color: var(--color-muted);
+}

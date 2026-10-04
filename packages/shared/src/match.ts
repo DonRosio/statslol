@@ -16,7 +16,10 @@ export const matchSummarySchema = z.object({
   queueId: z.number().int().nonnegative(),
   startedAt: z.iso.datetime(),
   durationSeconds: z.number().int().nonnegative(),
+  // In Arena, a "win" is a place in the top half: the place itself says more.
   result: matchResultSchema,
+  // Place of the player's team in modes ranked by place (Arena: 1 to 6); null in the others.
+  placement: z.number().int().positive().nullable(),
   championId: z.number().int(),
   // Riot's internal name, used in Data Dragon file names (e.g. "MonkeyKing" for Wukong).
   championName: z.string(),

@@ -1,0 +1,33 @@
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.card {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.card p {
+  margin: 0;
+}
+
+.title {
+  margin: 0 0 0.25rem;
+  font-size: 0.875rem;
+  font-weight: normal;
+  color: var(--color-muted);
+}
+
+.tier {
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+.record,
+.unranked {
+  color: var(--color-muted);
+}

@@ -61,6 +61,7 @@ describe('getPage', () => {
           startedAt: '2026-10-03T16:41:12.000Z',
           durationSeconds: 1834,
           result: 'win',
+          placement: null,
           championId: 517,
           championName: 'Sylas',
           kills: 7,
@@ -137,6 +138,25 @@ describe('getPage', () => {
       'win',
       'loss',
       'remake',
+    ]);
+  });
+
+  it("gives the place of the player's team in Arena, and none in other modes", async () => {
+    // Older than Arena: Riot did not send the field yet.
+    const old = fakeMatch('EUW1_1');
+    delete old.info.participants[0]?.placement;
+    const { service } = setUp([
+      fakeMatch('EUW1_3', { placement: 3, win: true, teamPosition: '' }),
+      fakeMatch('EUW1_2', { placement: 0 }),
+      old,
+    ]);
+
+    const page = await service.getPage({ ...PAGE, start: 0 });
+
+    expect(page?.matches.map((match) => match.placement)).toEqual([
+      3,
+      null,
+      null,
     ]);
   });
 

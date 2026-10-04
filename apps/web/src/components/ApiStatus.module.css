@@ -1,0 +1,18 @@
+/* A colored dot before the text: grey while checking, green when up, red when down. */
+.status::before {
+  content: '';
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  margin-right: 0.5em;
+  border-radius: 50%;
+  background: grey;
+}
+
+.status[data-status='success']::before {
+  background: var(--color-success);
+}
+
+.status[data-status='error']::before {
+  background: var(--color-error);
+}

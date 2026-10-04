@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router';
 import { playerPath } from '../player-path.ts';
 import { REGION_NAMES } from '../regions.ts';
 import { parseRiotIdInput } from '../riot-id-input.ts';
+import styles from './SearchForm.module.css';
 
 /** Looks up a player: region + Riot ID, then opens their profile page. */
 export function SearchForm() {
@@ -28,7 +29,7 @@ export function SearchForm() {
   }
 
   return (
-    <form className="search-form" role="search" onSubmit={handleSubmit}>
+    <form className={styles.form} role="search" onSubmit={handleSubmit}>
       <label htmlFor={regionFieldId} className="visually-hidden">
         Region
       </label>
@@ -66,7 +67,7 @@ export function SearchForm() {
       <button type="submit">Search</button>
       {error !== null && (
         // role="alert": screen readers announce the error as soon as it appears.
-        <p id={errorId} className="search-error" role="alert">
+        <p id={errorId} className={styles.error} role="alert">
           {error}
         </p>
       )}

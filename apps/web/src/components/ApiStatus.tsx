@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { healthQuery } from '../api/health.ts';
+import styles from './ApiStatus.module.css';
 
 const LABELS = {
   pending: 'Checking the API…',
@@ -13,7 +14,7 @@ export function ApiStatus() {
   const { status } = useQuery(healthQuery);
   return (
     // role="status": screen readers announce the new text when it changes.
-    <p className="api-status" data-status={status} role="status">
+    <p className={styles.status} data-status={status} role="status">
       {LABELS[status]}
     </p>
   );

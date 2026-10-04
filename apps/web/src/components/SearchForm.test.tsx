@@ -1,15 +1,18 @@
 import { screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
-import { http, HttpResponse } from 'msw';
+import { delay, http, HttpResponse } from 'msw';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { recordRequests, server } from '../test-server.ts';
 import { renderPage } from '../test-utils.tsx';
 
 beforeEach(() => {
-  // The home page also shows the status of the API.
   server.use(
+    // The home page also shows the status of the API.
     http.get('/api/health', () => HttpResponse.json({ status: 'ok' })),
+    // A search opens the profile page, which asks the API about the player: these tests
+    // only look at the URL it opened.
+    http.get('/api/v1/*', () => delay('infinite')),
   );
 });
 

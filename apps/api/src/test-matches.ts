@@ -22,6 +22,7 @@ export function fakeMatch(
     teamPosition: 'MIDDLE',
     win: index < 5,
     gameEndedInEarlySurrender: false,
+    placement: 0,
     // Some of the ~150 other fields, which the API keeps without reading them.
     item0: 3147,
     challenges: { kda: 8 },
