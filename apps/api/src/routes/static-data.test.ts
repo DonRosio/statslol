@@ -10,6 +10,14 @@ import { TEST_CONFIG as config } from '../test-config.ts';
 const STATIC_DATA: StaticData = {
   version: '16.19.1',
   champions: { '62': { id: 'MonkeyKing', name: 'Wukong' } },
+  items: { '3078': { name: 'Trinity Force' } },
+  summonerSpells: { '4': { id: 'SummonerFlash', name: 'Flash' } },
+  runes: {
+    '8008': {
+      name: 'Lethal Tempo',
+      icon: 'perk-images/Styles/Precision/LethalTempo/LethalTempoTemp.png',
+    },
+  },
 };
 
 /** A Data Dragon client that answers without any network call. */
@@ -33,7 +41,7 @@ function createApp(dataDragon: DataDragonClient) {
 }
 
 describe('GET /api/v1/static-data', () => {
-  it("answers Data Dragon's version and champions", async () => {
+  it("answers Data Dragon's version, champions, items, spells and runes", async () => {
     const response = await createApp(fakeDataDragon())();
 
     expect(response.statusCode).toBe(200);

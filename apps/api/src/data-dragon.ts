@@ -1,6 +1,9 @@
 import {
   championSchema,
+  itemSchema,
+  runeSchema,
   staticDataSchema,
+  summonerSpellSchema,
   type StaticData,
 } from '@statslol/shared';
 import { z } from 'zod';
@@ -35,8 +38,50 @@ const championsFileSchema = z.object({
   ),
 });
 
+// item.json: one entry per item, by item ID, with its price, stats, description, recipe...;
+// only the name is read. (The image of an item is <ID>.png: its ID is all that is needed.)
+const itemsFileSchema = z.object({
+  data: z.record(z.string().regex(/^\d+$/), itemSchema),
+});
+
+// summoner.json: one entry per summoner spell, by spell ID ("SummonerFlash"). `key` is the
+// number used by the Riot API (e.g. "4" for Flash).
+const summonerSpellsFileSchema = z.object({
+  data: z.record(
+    z.string(),
+    z.object({
+      id: summonerSpellSchema.shape.id,
+      key: z.string().regex(/^\d+$/),
+      name: z.string(),
+    }),
+  ),
+});
+
+// runesReforged.json: the trees (Precision, Domination...), each with its slots of runes.
+const runesFileSchema = z.array(
+  z.object({
+    id: z.number().int().positive(),
+    name: z.string(),
+    icon: runeSchema.shape.icon,
+    slots: z.array(
+      z.object({
+        runes: z.array(
+          z.object({
+            id: z.number().int().positive(),
+            name: z.string(),
+            icon: runeSchema.shape.icon,
+          }),
+        ),
+      }),
+    ),
+  }),
+);
+
 export interface DataDragonClient {
-  /** The latest version of Data Dragon's files, and the champions it knows. */
+  /**
+   * The latest version of Data Dragon's files, with the champions, items, summoner spells
+   * and runes it knows.
+   */
   getStaticData(): Promise<StaticData>;
 }
 
@@ -81,14 +126,43 @@ export function createDataDragonClient({
   return {
     async getStaticData() {
       const [version] = await get('/api/versions.json', versionsSchema);
-      const { data } = await get(
-        `/cdn/${version}/data/${LOCALE}/champion.json`,
-        championsFileSchema,
-      );
-      const champions = Object.fromEntries(
-        Object.values(data).map(({ id, key, name }) => [key, { id, name }]),
-      );
-      return { version, champions };
+      const file = (name: string) =>
+        `/cdn/${version}/data/${LOCALE}/${name}.json`;
+      // Four files of the same version: asked at the same time.
+      const [champions, items, spells, runeTrees] = await Promise.all([
+        get(file('champion'), championsFileSchema),
+        get(file('item'), itemsFileSchema),
+        get(file('summoner'), summonerSpellsFileSchema),
+        get(file('runesReforged'), runesFileSchema),
+      ]);
+      // The trees and their runes share one table: their IDs never clash (8000 is a tree,
+      // 8008 a rune).
+      const runes: StaticData['runes'] = {};
+      for (const tree of runeTrees) {
+        runes[tree.id] = { name: tree.name, icon: tree.icon };
+        for (const { runes: slotRunes } of tree.slots) {
+          for (const { id, name, icon } of slotRunes) {
+            runes[id] = { name, icon };
+          }
+        }
+      }
+      return {
+        version,
+        champions: Object.fromEntries(
+          Object.values(champions.data).map(({ id, key, name }) => [
+            key,
+            { id, name },
+          ]),
+        ),
+        items: items.data,
+        summonerSpells: Object.fromEntries(
+          Object.values(spells.data).map(({ id, key, name }) => [
+            key,
+            { id, name },
+          ]),
+        ),
+        runes,
+      };
     },
   };
 }

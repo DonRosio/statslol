@@ -5,8 +5,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { createDataDragonClient, DataDragonError } from './data-dragon.ts';
 
 const VERSIONS_URL = 'https://ddragon.leagueoflegends.com/api/versions.json';
-const CHAMPIONS_URL =
-  'https://ddragon.leagueoflegends.com/cdn/:version/data/en_US/champion.json';
+const FILE_URL =
+  'https://ddragon.leagueoflegends.com/cdn/:version/data/en_US/:file';
 
 // Same shape as Data Dragon's files, shortened.
 const VERSIONS = ['16.19.1', '16.18.1', 'lolpatch_3.7'];
@@ -30,6 +30,42 @@ const CHAMPIONS_FILE = {
     },
   },
 };
+const ITEMS_FILE = {
+  type: 'item',
+  data: {
+    '3078': { name: 'Trinity Force', gold: { total: 3333 }, image: {} },
+    // Data Dragon has a few items without a name.
+    '2008': { name: '', gold: { total: 0 }, image: {} },
+  },
+};
+const SPELLS_FILE = {
+  type: 'summoner',
+  data: {
+    SummonerFlash: { id: 'SummonerFlash', key: '4', name: 'Flash' },
+    SummonerFlash_Jade: { id: 'SummonerFlash_Jade', key: '74', name: 'Flash' },
+  },
+};
+const RUNES_FILE = [
+  {
+    id: 8000,
+    key: 'Precision',
+    name: 'Precision',
+    icon: 'perk-images/Styles/7201_Precision.png',
+    slots: [
+      {
+        runes: [
+          {
+            id: 8008,
+            name: 'Lethal Tempo',
+            icon: 'perk-images/Styles/Precision/LethalTempo/LethalTempoTemp.png',
+            shortDesc: '...',
+          },
+        ],
+      },
+      { runes: [] },
+    ],
+  },
+];
 
 const server = setupServer();
 beforeAll(() => {
@@ -42,16 +78,24 @@ afterAll(() => {
   server.close();
 });
 
+/** Data Dragon answers these files; a test passes another body to break one of them. */
 function answer(
   versions: JsonBodyType,
-  championsFile: JsonBodyType = CHAMPIONS_FILE,
+  files: Partial<Record<string, JsonBodyType>> = {},
 ) {
-  const requestedVersions: string[] = [];
+  const bodies: Record<string, JsonBodyType> = {
+    'champion.json': CHAMPIONS_FILE,
+    'item.json': ITEMS_FILE,
+    'summoner.json': SPELLS_FILE,
+    'runesReforged.json': RUNES_FILE,
+    ...files,
+  };
+  const requestedVersions = new Set<string>();
   server.use(
     http.get(VERSIONS_URL, () => HttpResponse.json(versions)),
-    http.get(CHAMPIONS_URL, ({ params }) => {
-      requestedVersions.push(String(params.version));
-      return HttpResponse.json(championsFile);
+    http.get(FILE_URL, ({ params }) => {
+      requestedVersions.add(String(params.version));
+      return HttpResponse.json(bodies[String(params.file)] ?? null);
     }),
   );
   return requestedVersions;
@@ -62,8 +106,8 @@ function getStaticData() {
 }
 
 describe('createDataDragonClient', () => {
-  it('gives the latest version and its champions, by champion ID', async () => {
-    const requestedVersions = answer(VERSIONS);
+  it('gives the latest version with its champions, items, spells and runes, by ID', async () => {
+    answer(VERSIONS);
 
     await expect(getStaticData()).resolves.toEqual({
       version: '16.19.1',
@@ -71,8 +115,31 @@ describe('createDataDragonClient', () => {
         '266': { id: 'Aatrox', name: 'Aatrox' },
         '62': { id: 'MonkeyKing', name: 'Wukong' },
       },
+      items: { '3078': { name: 'Trinity Force' }, '2008': { name: '' } },
+      summonerSpells: {
+        '4': { id: 'SummonerFlash', name: 'Flash' },
+        '74': { id: 'SummonerFlash_Jade', name: 'Flash' },
+      },
+      // The tree (8000) and its runes (8008) in one table.
+      runes: {
+        '8000': {
+          name: 'Precision',
+          icon: 'perk-images/Styles/7201_Precision.png',
+        },
+        '8008': {
+          name: 'Lethal Tempo',
+          icon: 'perk-images/Styles/Precision/LethalTempo/LethalTempoTemp.png',
+        },
+      },
     });
-    expect(requestedVersions).toEqual(['16.19.1']);
+  });
+
+  it('reads every file from the latest version only', async () => {
+    const versions = answer(VERSIONS);
+
+    await getStaticData();
+
+    expect([...versions]).toEqual(['16.19.1']);
   });
 
   it.each([
@@ -85,10 +152,25 @@ describe('createDataDragonClient', () => {
     await expect(getStaticData()).rejects.toBeInstanceOf(DataDragonError);
   });
 
-  it('fails when a champion ID could change an image URL', async () => {
-    answer(VERSIONS, {
-      data: { Evil: { id: '../Evil', key: '1', name: 'Evil' } },
-    });
+  it.each([
+    [
+      'a champion ID',
+      'champion.json',
+      { data: { Evil: { id: '../Evil', key: '1', name: 'Evil' } } },
+    ],
+    ['an item ID', 'item.json', { data: { '../1': { name: 'Evil' } } }],
+    [
+      'a summoner spell ID',
+      'summoner.json',
+      { data: { Evil: { id: '../Evil', key: '1', name: 'Evil' } } },
+    ],
+    [
+      'a rune icon',
+      'runesReforged.json',
+      [{ id: 1, name: 'Evil', icon: '../../evil.png', slots: [] }],
+    ],
+  ])('fails when %s could change an image URL', async (_case, file, body) => {
+    answer(VERSIONS, { [file]: body });
 
     await expect(getStaticData()).rejects.toBeInstanceOf(DataDragonError);
   });

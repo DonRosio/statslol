@@ -454,6 +454,7 @@ function riotMatch(matchId = 'EUW1_7123456789') {
           teamPosition: 'JUNGLE',
           win: false,
           gameEndedInEarlySurrender: false,
+          teamId: 100,
           item0: 3147,
           challenges: { kda: 1 },
         },
@@ -536,6 +537,46 @@ describe('getMatch', () => {
     );
 
     await expect(client.getMatch('euw1', 'EUW1_1')).resolves.toBeNull();
+  });
+
+  it('keeps the spells, items and runes of the players', async () => {
+    const match = riotMatch();
+    const withDetails = {
+      ...match,
+      info: {
+        ...match.info,
+        participants: [
+          {
+            ...match.info.participants[0],
+            riotIdGameName: 'Hide on bush',
+            riotIdTagline: 'KR1',
+            summoner1Id: 4,
+            summoner2Id: 11,
+            item1: 3078,
+            item6: 3340,
+            perks: {
+              statPerks: { offense: 5005 },
+              styles: [
+                { style: 8000, selections: [{ perk: 8008, var1: 543 }] },
+                { style: 8400, selections: [{ perk: 8473 }] },
+              ],
+            },
+          },
+        ],
+      },
+    };
+    server.use(http.get(MATCH_URL, () => HttpResponse.json(withDetails)));
+
+    await expect(client.getMatch('euw1', 'EUW1_1')).resolves.toEqual(
+      withDetails,
+    );
+  });
+
+  it('accepts a match from before Riot IDs, spells and runes were told', async () => {
+    // The oldest matches only have what riotMatch() has: nothing of the above.
+    server.use(http.get(MATCH_URL, () => HttpResponse.json(riotMatch())));
+
+    await expect(client.getMatch('euw1', 'EUW1_1')).resolves.toBeDefined();
   });
 
   it('reports a match without a field the API uses as unexpected', async () => {

@@ -69,6 +69,10 @@ describe('getPage', () => {
           assists: 9,
           creepScore: 192,
           position: 'MIDDLE',
+          spellIds: [4, 14],
+          runes: { keystoneId: 8008, secondaryStyleId: 8400 },
+          itemIds: [3078, 3157, 0, 0, 0, 0, 3340],
+          participants: expect.any(Array) as unknown,
         },
         expect.objectContaining({ id: 'KR_1' }) as unknown,
       ],
@@ -158,6 +162,122 @@ describe('getPage', () => {
       null,
       null,
     ]);
+  });
+
+  it('lists the players of the match with their Riot ID and side, and marks the one looked up', async () => {
+    const { service } = setUp([fakeMatch('KR_1')]);
+
+    const page = await service.getPage({ ...PAGE, start: 0 });
+
+    const participants = page?.matches[0]?.participants ?? [];
+    expect(participants).toHaveLength(10);
+    expect(participants.filter((one) => one.isPlayer)).toHaveLength(1);
+    expect(participants[0]).toEqual({
+      riotId: { gameName: 'Player 0', tagLine: 'EUW0' },
+      championId: 517,
+      championName: 'Sylas',
+      teamId: 100,
+      subteamId: null,
+      isPlayer: true,
+    });
+    expect(participants[9]).toMatchObject({ teamId: 200, isPlayer: false });
+    // The PUUIDs are Riot's business: they are not sent to the site.
+    expect(JSON.stringify(page)).not.toContain('other-puuid');
+    expect(JSON.stringify(page)).not.toContain(PLAYER_PUUID);
+  });
+
+  it('gives no Riot ID for a player the match does not name', async () => {
+    const match = fakeMatch('KR_1');
+    delete match.info.participants[1]?.riotIdGameName;
+    delete match.info.participants[1]?.riotIdTagline;
+    // Riot sometimes sends an empty name.
+    match.info.participants[2] = {
+      ...fakeMatch('x').info.participants[2],
+      riotIdGameName: '',
+      riotIdTagline: '',
+    } as RiotMatch['info']['participants'][number];
+    const { service } = setUp([match]);
+
+    const page = await service.getPage({ ...PAGE, start: 0 });
+
+    const participants = page?.matches[0]?.participants ?? [];
+    expect(participants[1]?.riotId).toBeNull();
+    expect(participants[2]?.riotId).toBeNull();
+    expect(participants[0]?.riotId).not.toBeNull();
+  });
+
+  it('gives the spells, the runes and the 7 item slots of the player', async () => {
+    const { service } = setUp([
+      fakeMatch('KR_1', {
+        summoner1Id: 11,
+        summoner2Id: 4,
+        item0: 1055,
+        item5: 3158,
+        item6: 3363,
+      }),
+    ]);
+
+    const page = await service.getPage({ ...PAGE, start: 0 });
+
+    expect(page?.matches[0]).toMatchObject({
+      spellIds: [11, 4],
+      itemIds: [1055, 3157, 0, 0, 0, 3158, 3363],
+      runes: { keystoneId: 8008, secondaryStyleId: 8400 },
+    });
+  });
+
+  it('gives no runes in Arena, where Riot sends zeros, and a team for each player', async () => {
+    const zero = { style: 0, selections: [{ perk: 0 }, { perk: 0 }] };
+    const { service } = setUp([
+      fakeMatch('KR_1', {
+        // The only spell of Arena: Cherry Flash.
+        summoner1Id: 2202,
+        summoner2Id: 0,
+        perks: { styles: [zero, zero] },
+        playerSubteamId: 3,
+      }),
+    ]);
+
+    const page = await service.getPage({ ...PAGE, start: 0 });
+
+    expect(page?.matches[0]).toMatchObject({ spellIds: [2202], runes: null });
+    expect(page?.matches[0]?.participants[0]).toMatchObject({ subteamId: 3 });
+    expect(page?.matches[0]?.participants[1]).toMatchObject({
+      subteamId: null,
+    });
+  });
+
+  it('copes with a match that tells nothing of spells, items, runes or Riot IDs', async () => {
+    const old = fakeMatch('EUW1_1');
+    // What those matches do not have: Riot added it later.
+    const addedLater = [
+      'summoner1Id',
+      'summoner2Id',
+      'item0',
+      'item1',
+      'item6',
+      'perks',
+      'riotIdGameName',
+      'riotIdTagline',
+    ];
+    old.info.participants = old.info.participants.map(
+      (participant) =>
+        Object.fromEntries(
+          Object.entries(participant).filter(
+            ([field]) => !addedLater.includes(field),
+          ),
+        ) as RiotMatch['info']['participants'][number],
+    );
+    const { service } = setUp([old]);
+
+    const page = await service.getPage({ ...PAGE, start: 0 });
+
+    expect(page?.matches[0]).toMatchObject({
+      spellIds: [],
+      runes: null,
+      itemIds: [0, 0, 0, 0, 0, 0, 0],
+    });
+    expect(page?.matches[0]?.participants[0]?.riotId).toBeNull();
   });
 
   it('gives no position in modes without positions (ARAM, Arena...)', async () => {

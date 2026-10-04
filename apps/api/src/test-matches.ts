@@ -23,8 +23,25 @@ export function fakeMatch(
     win: index < 5,
     gameEndedInEarlySurrender: false,
     placement: 0,
+    teamId: index < 5 ? 100 : 200,
+    riotIdGameName: `Player ${String(index)}`,
+    riotIdTagline: `EUW${String(index)}`,
+    summoner1Id: 4,
+    summoner2Id: 14,
+    item0: 3078,
+    item1: 3157,
+    item2: 0,
+    item3: 0,
+    item4: 0,
+    item5: 0,
+    item6: 3340,
+    perks: {
+      styles: [
+        { style: 8000, selections: [{ perk: 8008 }, { perk: 9111 }] },
+        { style: 8400, selections: [{ perk: 8473 }, { perk: 8242 }] },
+      ],
+    },
     // Some of the ~150 other fields, which the API keeps without reading them.
-    item0: 3147,
     challenges: { kda: 8 },
   });
   return {

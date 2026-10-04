@@ -108,6 +108,40 @@ const riotParticipantSchema = z.looseObject({
   // Place of the player's team in modes ranked by place (Arena: 1 to 6), 0 in the others.
   // Missing in matches older than Arena (2023).
   placement: z.number().int().nonnegative().optional(),
+  // 100 or 200 (blue or red side). In Arena, the teams are told by `playerSubteamId`.
+  teamId: z.number().int().nonnegative(),
+  // Arena: the team of the player (1 to 6 in 2026), 0 or missing elsewhere.
+  playerSubteamId: z.number().int().nonnegative().optional(),
+  // The player's Riot ID at the time of the match. Missing in matches before 2023, which
+  // only had the summoner name.
+  riotIdGameName: z.string().optional(),
+  riotIdTagline: z.string().optional(),
+  // The 2 summoner spells (Flash, Ignite...), by their `key` in Data Dragon. 0: none.
+  summoner1Id: z.number().int().nonnegative().optional(),
+  summoner2Id: z.number().int().nonnegative().optional(),
+  // The 6 slots of the inventory at the end of the game, then the trinket (item6), by
+  // Data Dragon's item ID. 0: empty slot.
+  item0: z.number().int().nonnegative().optional(),
+  item1: z.number().int().nonnegative().optional(),
+  item2: z.number().int().nonnegative().optional(),
+  item3: z.number().int().nonnegative().optional(),
+  item4: z.number().int().nonnegative().optional(),
+  item5: z.number().int().nonnegative().optional(),
+  item6: z.number().int().nonnegative().optional(),
+  // Runes: styles[0] is the primary tree (its first selection is the keystone), styles[1]
+  // the secondary one. All 0 in modes without runes (Arena).
+  perks: z
+    .looseObject({
+      styles: z.array(
+        z.looseObject({
+          style: z.number().int().nonnegative(),
+          selections: z.array(
+            z.looseObject({ perk: z.number().int().nonnegative() }),
+          ),
+        }),
+      ),
+    })
+    .optional(),
 });
 
 export const riotMatchSchema = z.looseObject({

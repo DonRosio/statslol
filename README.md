@@ -57,13 +57,15 @@ pnpm then reports that Vite "failed with signal SIGINT": that is expected).
       `/api/v1/players/euw/Hide%20on%20bush/KR1` (level, icon, solo and flex ranks).
     - `GET /api/v1/players/:region/:name/:tag/matches?start=0`: a page of 10 matches of the
       player, the most recent first, and the `start` of the next page. Each match is fetched
-      from Riot once, then stored in PostgreSQL.
+      from Riot once, then stored in PostgreSQL. Each one has the player's result, KDA,
+      spells, runes and items, and its 10 players (18 in Arena: Riot ID, champion, side).
     - `POST /api/v1/players/:region/:name/:tag/refresh`: the "Update" button. The next
       lookups of the player get fresh data from Riot. At most once every 2 minutes per
       player, whoever asks: otherwise 429, with the seconds to wait in `Retry-After`.
     - `GET /api/v1/static-data`: what the web app needs from Data Dragon, Riot's CDN for
       the files of the game: the version of its files (part of every image URL) and the
-      name of each champion, by champion ID. Asked to Data Dragon at most once an hour.
+      name of each champion, item, summoner spell and rune, by ID. Asked to Data Dragon at
+      most once an hour.
     - Every answer carries security headers (helmet). Requests are limited per IP address
       (60 per minute, 20 for player lookups, none for the health check): beyond, 429.
       Behind Caddy, the address of a visitor is the one Caddy gives (`TRUST_PROXY`).

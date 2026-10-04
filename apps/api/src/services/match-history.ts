@@ -2,6 +2,7 @@ import type { Platform, RiotClient, RiotMatch } from '@statslol/riot-client';
 import {
   MATCHES_PER_PAGE,
   type MatchHistory,
+  type MatchParticipant,
   type MatchSummary,
   type Region,
 } from '@statslol/shared';
@@ -127,6 +128,63 @@ function summarize(match: RiotMatch, puuid: string): MatchSummary | null {
     assists: player.assists,
     creepScore: player.totalMinionsKilled + player.neutralMinionsKilled,
     position: player.teamPosition === '' ? null : player.teamPosition,
+    spellIds: [player.summoner1Id, player.summoner2Id].filter(isSet),
+    runes: runesOf(player),
+    itemIds: [
+      player.item0,
+      player.item1,
+      player.item2,
+      player.item3,
+      player.item4,
+      player.item5,
+      player.item6,
+    ].map((id) => id ?? 0),
+    participants: match.info.participants.map((participant) =>
+      summarizeParticipant(participant, puuid),
+    ),
+  };
+}
+
+type RiotParticipant = RiotMatch['info']['participants'][number];
+
+/** An ID that points to something: Riot uses 0 (or leaves it out) for "none". */
+function isSet(id: number | undefined): id is number {
+  return id !== undefined && id > 0;
+}
+
+/**
+ * The keystone and the secondary tree of a player, or null if they had no runes (Arena, or
+ * a match that does not tell them). Riot lists the primary tree first, then the secondary.
+ */
+function runesOf(player: RiotParticipant): MatchSummary['runes'] {
+  const [primary, secondary] = player.perks?.styles ?? [];
+  const keystoneId = primary?.selections[0]?.perk;
+  const secondaryStyleId = secondary?.style;
+  return isSet(keystoneId) && isSet(secondaryStyleId)
+    ? { keystoneId, secondaryStyleId }
+    : null;
+}
+
+function summarizeParticipant(
+  participant: RiotParticipant,
+  puuid: string,
+): MatchParticipant {
+  const { riotIdGameName, riotIdTagline } = participant;
+  return {
+    // The PUUID stays on the server: the site only needs the Riot ID to link to the player.
+    riotId:
+      riotIdGameName === undefined ||
+      riotIdTagline === undefined ||
+      riotIdGameName === ''
+        ? null
+        : { gameName: riotIdGameName, tagLine: riotIdTagline },
+    championId: participant.championId,
+    championName: participant.championName,
+    teamId: participant.teamId,
+    subteamId: isSet(participant.playerSubteamId)
+      ? participant.playerSubteamId
+      : null,
+    isPlayer: participant.puuid === puuid,
   };
 }
 
