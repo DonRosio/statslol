@@ -19,6 +19,7 @@ export {
   type Rank,
   type Tier,
 } from './player-profile.ts';
+export { REFRESH_COOLDOWN_SECONDS } from './refresh.ts';
 export { DEFAULT_REGION, regionSchema, type Region } from './region.ts';
 export {
   championSchema,

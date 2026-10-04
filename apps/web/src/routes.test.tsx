@@ -40,6 +40,24 @@ describe('home page', () => {
   });
 });
 
+describe("Riot's legal notice", () => {
+  it.each([
+    ['the home page', '/'],
+    ['the "not found" page', '/no/such/page'],
+  ])('is on %s', (_case, path) => {
+    server.use(
+      http.get('/api/health', () => HttpResponse.json({ status: 'ok' })),
+    );
+
+    renderPage(path);
+
+    // Word for word, as Riot's policies require.
+    expect(screen.getByRole('contentinfo').textContent).toBe(
+      "statslol isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc.",
+    );
+  });
+});
+
 describe('unknown address', () => {
   it('shows a "not found" page with a link to the home page', () => {
     renderPage('/no/such/page');

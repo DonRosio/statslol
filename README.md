@@ -92,6 +92,14 @@ pnpm then reports that Vite "failed with signal SIGINT": that is expected).
       history, 10 matches at a time ("Show more"). Images (profile icon, champions) come
       from Data Dragon; without them, the page shows names and empty squares instead. A URL
       the API would refuse (unknown region, invalid name or tag) shows the "not found" page.
+    - "Update" button: the API forgets what it knows about the player, and the page loads
+      fresh data. Once every 2 minutes per player: the button counts down the delay.
+    - Grey blocks stand in for the ranks and the matches while they load. When the API
+      cannot answer (server or Riot down, too many requests...), the page says why in plain
+      words, with a "Try again" button; an unknown Riot ID shows "Player not found" and the
+      search form, filled in to correct it.
+    - Every page ends with the legal notice Riot's policies require.
+    - `design/wireframes/`: hand-drawn wireframes of the pages.
     - Styles: each component has its own CSS Module (`Component.module.css`, class names
       made unique by Vite); `src/styles.css` holds the page-wide rules and the design
       tokens (CSS variables: colors, radius).

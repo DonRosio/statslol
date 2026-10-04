@@ -1,0 +1,12 @@
+/* Ranks on the left, matches on the right; one column on a narrow screen. */
+.columns {
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (width >= 52rem) {
+  .columns {
+    grid-template-columns: 17rem 1fr;
+    align-items: start;
+  }
+}

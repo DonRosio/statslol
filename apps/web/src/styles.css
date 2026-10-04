@@ -25,10 +25,40 @@ body {
   margin: 0;
 }
 
+/* The footer stays at the bottom of the window, even on a short page. */
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
 main {
-  max-width: 60rem;
+  flex: 1 0 auto;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 72rem;
   margin: 0 auto;
   padding: 1rem;
+}
+
+/* A grey block in place of content that is loading; it pulses gently. */
+.skeleton {
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* Visitors who asked their system for less motion get a still block. */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
 }
 
 /* Hidden on screen, still read by screen readers (e.g. the labels of the search form). */

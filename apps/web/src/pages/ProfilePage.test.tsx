@@ -1,69 +1,12 @@
-import type { MatchHistory } from '@statslol/shared';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
-import { delay, http, HttpResponse, type HttpResponseResolver } from 'msw';
+import { delay } from 'msw';
 import { describe, expect, it } from 'vitest';
 
-import { recordRequests, server } from '../test-server.ts';
-import {
-  ARENA_MATCH,
-  matchSummary,
-  PLAYER_PAGE_PATH,
-  PROFILE,
-  STATIC_DATA,
-} from '../test-data.ts';
-import { renderPage } from '../test-utils.tsx';
-
-/** Answers each page of matches by its `start`; any other page is an error. */
-function matchPages(
-  pages: Readonly<Record<number, MatchHistory>>,
-): HttpResponseResolver {
-  return ({ request }) => {
-    const start = Number(new URL(request.url).searchParams.get('start'));
-    const page = pages[start];
-    return page === undefined
-      ? new HttpResponse(null, { status: 500 })
-      : HttpResponse.json(page);
-  };
-}
-
-const ONE_PAGE = matchPages({
-  0: { matches: [matchSummary('KR_3'), ARENA_MATCH], nextStart: null },
-});
-
-/** The fake API: by default, the profile, one page of 2 matches and the static data. */
-function mockApi({
-  profile = () => HttpResponse.json(PROFILE),
-  matches = ONE_PAGE,
-  staticData = () => HttpResponse.json(STATIC_DATA),
-}: {
-  profile?: HttpResponseResolver;
-  matches?: HttpResponseResolver;
-  staticData?: HttpResponseResolver;
-} = {}) {
-  server.use(
-    http.get('/api/v1/players/:region/:name/:tag', profile),
-    http.get('/api/v1/players/:region/:name/:tag/matches', matches),
-    http.get('/api/v1/static-data', staticData),
-  );
-}
-
-const failure = () => new HttpResponse(null, { status: 500 });
-
-/** Waits for the list of matches, then returns its items. */
-async function findMatches(): Promise<HTMLElement[]> {
-  const list = await screen.findByRole('list');
-  return within(list).getAllByRole('listitem');
-}
-
-/** The item at `index`, or a failed test if there is none. */
-function at<T>(items: readonly T[], index: number): T {
-  const item = items[index];
-  if (item === undefined) {
-    throw new Error(`No item at index ${String(index)}`);
-  }
-  return item;
-}
+import { failure, matchPages, mockPlayerApi } from '../test-api.ts';
+import { matchSummary, PLAYER_PAGE_PATH } from '../test-data.ts';
+import { recordRequests } from '../test-server.ts';
+import { at, findMatches, renderPage } from '../test-utils.tsx';
 
 function imageSources() {
   return [...document.querySelectorAll('img')].map((image) => image.src);
@@ -77,7 +20,7 @@ const IMAGE_SOURCES = [
 
 describe('profile page', () => {
   it('shows whose profile it is before the API answers', () => {
-    mockApi({
+    mockPlayerApi({
       profile: () => delay('infinite'),
       matches: () => delay('infinite'),
     });
@@ -93,7 +36,7 @@ describe('profile page', () => {
   });
 
   it('shows the level, the ranks, and the Riot ID the way its owner writes it', async () => {
-    mockApi();
+    mockPlayerApi();
 
     renderPage('/players/kr/hide%20on%20bush/kr1');
 
@@ -109,7 +52,7 @@ describe('profile page', () => {
   });
 
   it('asks the API about the player of the URL, percent-encoded', async () => {
-    mockApi();
+    mockPlayerApi();
     const requests = recordRequests();
 
     renderPage('/players/euw/100%25%20sure%3F/EUW');
@@ -123,7 +66,7 @@ describe('profile page', () => {
   });
 
   it('lists the matches of the player, from their point of view', async () => {
-    mockApi();
+    mockPlayerApi();
 
     renderPage(PLAYER_PAGE_PATH);
 
@@ -160,7 +103,7 @@ describe('profile page', () => {
   });
 
   it('shows the profile icon and the champions from Data Dragon', async () => {
-    mockApi();
+    mockPlayerApi();
 
     renderPage(PLAYER_PAGE_PATH);
 
@@ -170,7 +113,7 @@ describe('profile page', () => {
   });
 
   it('shows an empty square instead of an image that fails to load', async () => {
-    mockApi();
+    mockPlayerApi();
 
     renderPage(PLAYER_PAGE_PATH);
 
@@ -185,7 +128,7 @@ describe('profile page', () => {
   });
 
   it('shows names instead of images without the static data', async () => {
-    mockApi({ staticData: failure });
+    mockPlayerApi({ staticData: failure });
     const requests = recordRequests();
 
     renderPage(PLAYER_PAGE_PATH);
@@ -198,7 +141,7 @@ describe('profile page', () => {
   });
 
   it("shows Riot's name of a champion Data Dragon does not know yet", async () => {
-    mockApi({
+    mockPlayerApi({
       matches: matchPages({
         0: {
           matches: [
@@ -217,7 +160,7 @@ describe('profile page', () => {
   });
 
   it('loads older matches with "Show more", until the last page', async () => {
-    mockApi({
+    mockPlayerApi({
       matches: matchPages({
         0: {
           matches: [matchSummary('KR_4'), matchSummary('KR_3')],
@@ -244,51 +187,13 @@ describe('profile page', () => {
   });
 
   it('says so when the player has no matches', async () => {
-    mockApi({ matches: matchPages({ 0: { matches: [], nextStart: null } }) });
+    mockPlayerApi({
+      matches: matchPages({ 0: { matches: [], nextStart: null } }),
+    });
 
     renderPage(PLAYER_PAGE_PATH);
 
     expect(await screen.findByText('No matches yet.')).toBeDefined();
-  });
-
-  it('reports a profile that could not be loaded', async () => {
-    mockApi({ profile: failure });
-
-    renderPage(PLAYER_PAGE_PATH);
-
-    expect((await screen.findByRole('alert')).textContent).toBe(
-      'The profile could not be loaded.',
-    );
-    expect(screen.queryByRole('heading', { name: 'Match history' })).toBeNull();
-  });
-
-  it('reports a match history that could not be loaded', async () => {
-    mockApi({ matches: failure });
-
-    renderPage(PLAYER_PAGE_PATH);
-
-    expect((await screen.findByRole('alert')).textContent).toBe(
-      'The match history could not be loaded.',
-    );
-  });
-
-  it('reports older matches that could not be loaded, and lets try again', async () => {
-    mockApi({
-      matches: matchPages({
-        0: { matches: [matchSummary('KR_2')], nextStart: 1 },
-      }),
-    });
-    renderPage(PLAYER_PAGE_PATH);
-    await findMatches();
-
-    await userEvent
-      .setup()
-      .click(screen.getByRole('button', { name: 'Show more' }));
-
-    expect((await screen.findByRole('alert')).textContent).toBe(
-      'More matches could not be loaded.',
-    );
-    expect(screen.getByRole('button', { name: 'Show more' })).toBeDefined();
   });
 
   it.each([

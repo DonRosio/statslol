@@ -6,27 +6,57 @@ const PIXEL_PNG = Buffer.from(
   'base64',
 );
 
-/** A fake API: answers set by each test, by path + query string (e.g. /api/v1/...?start=0). */
+interface Answer {
+  readonly body: unknown;
+  readonly status: number;
+  readonly headers: Readonly<Record<string, string>>;
+}
+
+/**
+ * A fake API: answers set by each test, by method, path and query string
+ * (e.g. "GET /api/v1/players/...?start=0").
+ */
 export class FakeApi {
-  readonly #answers = new Map<string, { status: number; body: unknown }>();
+  readonly #answers = new Map<string, Answer>();
   /** Requests to the API that no test expected: each one fails the test. */
   readonly unexpectedRequests: string[] = [];
 
-  /** The API answers `body` (as JSON) to GET `path`, with `status` (200 by default). */
-  answer(path: string, body: unknown, status = 200): void {
-    this.#answers.set(path, { status, body });
+  /**
+   * From now on, the API answers `body` (as JSON; nothing if undefined) to `path`, with a
+   * 200 status unless `options` say otherwise.
+   */
+  answer(
+    path: string,
+    body: unknown,
+    {
+      status = 200,
+      headers = {},
+      method = 'GET',
+    }: {
+      status?: number;
+      headers?: Readonly<Record<string, string>>;
+      method?: 'GET' | 'POST';
+    } = {},
+  ): void {
+    this.#answers.set(`${method} ${path}`, { body, status, headers });
   }
 
   async install(page: Page): Promise<void> {
     await page.route('**/api/**', async (route) => {
       const url = new URL(route.request().url());
-      const answer = this.#answers.get(url.pathname + url.search);
+      const request = `${route.request().method()} ${url.pathname}${url.search}`;
+      const answer = this.#answers.get(request);
       if (answer === undefined) {
-        this.unexpectedRequests.push(url.pathname + url.search);
+        this.unexpectedRequests.push(request);
         await route.fulfill({ status: 500 });
         return;
       }
-      await route.fulfill({ status: answer.status, json: answer.body });
+      const { body, status, headers } = answer;
+      await route.fulfill(
+        body === undefined
+          ? { status, headers }
+          : { status, headers, json: body },
+      );
     });
   }
 }

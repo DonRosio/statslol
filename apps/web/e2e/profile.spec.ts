@@ -1,27 +1,11 @@
-import type { MatchHistory } from '@statslol/shared';
-
 import {
   ARENA_MATCH,
   matchSummary,
   PLAYER_API_PATH,
   PLAYER_PAGE_PATH,
-  PROFILE,
-  STATIC_DATA,
 } from '../src/test-data.ts';
-import { expect, test, type FakeApi } from './fixtures.ts';
-
-/** The API knows the player: profile, one page of matches (unless given), static data. */
-function knowPlayer(
-  api: FakeApi,
-  firstPage: MatchHistory = {
-    matches: [matchSummary('KR_3'), ARENA_MATCH],
-    nextStart: null,
-  },
-) {
-  api.answer(PLAYER_API_PATH, PROFILE);
-  api.answer(`${PLAYER_API_PATH}/matches?start=0`, firstPage);
-  api.answer('/api/v1/static-data', STATIC_DATA);
-}
+import { expect, test } from './fixtures.ts';
+import { knowPlayer } from './player-api.ts';
 
 test('finds a player from the home page, then shows their profile', async ({
   page,

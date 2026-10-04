@@ -27,6 +27,11 @@
   font-weight: bold;
 }
 
+/* Height of the 2 lines of a rank. */
+.placeholder {
+  height: 3.4rem;
+}
+
 .record,
 .unranked {
   color: var(--color-muted);

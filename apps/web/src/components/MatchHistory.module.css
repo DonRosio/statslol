@@ -1,9 +1,19 @@
+/* Level with the first rank card, in the column next to it. */
+.title {
+  margin: 0 0 0.75rem;
+}
+
 .list {
   display: grid;
   gap: 0.5rem;
   margin: 0 0 1rem;
   padding: 0;
   list-style: none;
+}
+
+/* Height of a match: the image and its padding. */
+.placeholder {
+  height: 4.25rem;
 }
 
 .match {

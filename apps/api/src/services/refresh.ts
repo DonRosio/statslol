@@ -1,11 +1,8 @@
-import type { Region } from '@statslol/shared';
+import { REFRESH_COOLDOWN_SECONDS, type Region } from '@statslol/shared';
 
 import type { Cache } from '../cache/cache.ts';
 import type { CachedRiotClient } from '../cache/riot-client.ts';
 import { PLATFORM_BY_REGION } from './platforms.ts';
-
-/** Shortest delay between two updates of a player, whoever asks: each one costs Riot calls. */
-export const REFRESH_COOLDOWN_SECONDS = 120;
 
 export type RefreshResult =
   | { readonly outcome: 'refreshed' }

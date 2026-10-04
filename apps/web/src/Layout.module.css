@@ -3,6 +3,19 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+.footer {
+  padding: 1rem;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.footer p {
+  max-width: 60rem;
+  margin: 0 auto;
+}
+
 .siteName {
   font-weight: bold;
   text-decoration: none;

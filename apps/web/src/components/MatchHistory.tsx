@@ -3,6 +3,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { useId } from 'react';
 
 import { matchHistoryQuery, uniqueMatches } from '../api/players.ts';
+import { describeError } from '../api/errors.ts';
 import { useStaticData } from '../api/static-data.ts';
 import { championImageUrl, findChampion } from '../data-dragon.ts';
 import {
@@ -15,6 +16,7 @@ import {
   positionName,
 } from '../format.ts';
 import { queueName } from '../queues.ts';
+import { ErrorMessage } from './ErrorMessage.tsx';
 import { GameImage } from './GameImage.tsx';
 import styles from './MatchHistory.module.css';
 
@@ -25,7 +27,9 @@ export function MatchHistory({ player }: { player: PlayerParams }) {
   const headingId = useId();
   return (
     <section aria-labelledby={headingId}>
-      <h2 id={headingId}>Match history</h2>
+      <h2 id={headingId} className={styles.title}>
+        Match history
+      </h2>
       <MatchList player={player} />
     </section>
   );
@@ -36,10 +40,17 @@ function MatchList({ player }: { player: PlayerParams }) {
   const staticData = useStaticData();
 
   if (history.data === undefined) {
-    return history.isError ? (
-      <p role="alert">The match history could not be loaded.</p>
+    return history.error === null ? (
+      <MatchListPlaceholder />
     ) : (
-      <p role="status">Loading the matches…</p>
+      <ErrorMessage
+        title="The match history could not be loaded."
+        error={history.error}
+        onRetry={() => {
+          void history.refetch();
+        }}
+        retrying={history.isFetching}
+      />
     );
   }
   const matches = uniqueMatches(history.data.pages);
@@ -61,7 +72,10 @@ function MatchList({ player }: { player: PlayerParams }) {
         </ol>
       )}
       {history.isFetchNextPageError && (
-        <p role="alert">More matches could not be loaded.</p>
+        // The "Show more" button below tries again.
+        <p role="alert">
+          More matches could not be loaded. {describeError(history.error)}
+        </p>
       )}
       {history.hasNextPage && (
         <button
@@ -75,6 +89,25 @@ function MatchList({ player }: { player: PlayerParams }) {
           {history.isFetchingNextPage ? 'Loading…' : 'Show more'}
         </button>
       )}
+    </>
+  );
+}
+
+/** Grey blocks in place of the first matches, while they load. */
+function MatchListPlaceholder() {
+  return (
+    <>
+      <p role="status" className="visually-hidden">
+        Loading the matches…
+      </p>
+      <div className={styles.list} aria-hidden="true">
+        {[1, 2, 3].map((index) => (
+          <div
+            key={index}
+            className={['skeleton', styles.placeholder].join(' ')}
+          />
+        ))}
+      </div>
     </>
   );
 }

@@ -7,11 +7,21 @@ import { REGION_NAMES } from '../regions.ts';
 import { parseRiotIdInput } from '../riot-id-input.ts';
 import styles from './SearchForm.module.css';
 
+interface SearchFormProps {
+  /** Text of the field at first, e.g. a Riot ID to correct. Empty by default. */
+  readonly initialRiotId?: string;
+  /** Region selected at first. EUW by default. */
+  readonly initialRegion?: Region;
+}
+
 /** Looks up a player: region + Riot ID, then opens their profile page. */
-export function SearchForm() {
+export function SearchForm({
+  initialRiotId = '',
+  initialRegion = DEFAULT_REGION,
+}: SearchFormProps) {
   const navigate = useNavigate();
-  const [riotId, setRiotId] = useState('');
-  const [region, setRegion] = useState<Region>(DEFAULT_REGION);
+  const [riotId, setRiotId] = useState(initialRiotId);
+  const [region, setRegion] = useState<Region>(initialRegion);
   const [error, setError] = useState<string | null>(null);
   const riotIdFieldId = useId();
   const regionFieldId = useId();

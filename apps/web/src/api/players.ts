@@ -5,10 +5,14 @@ import {
   type MatchSummary,
   type PlayerParams,
 } from '@statslol/shared';
-import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
+import {
+  infiniteQueryOptions,
+  queryOptions,
+  type QueryClient,
+} from '@tanstack/react-query';
 import { generatePath } from 'react-router';
 
-import { getJson } from './client.ts';
+import { getJson, post } from './client.ts';
 
 /**
  * URL of a player in the API, e.g. /api/v1/players/kr/Hide%20on%20bush/KR1. Each part is
@@ -55,6 +59,34 @@ export function matchHistoryQuery(player: PlayerParams) {
     // The API keeps the list of the latest matches for 2 minutes.
     staleTime: 2 * 60 * 1000,
   });
+}
+
+/**
+ * POST /api/v1/players/:region/:name/:tag/refresh, the "Update" button: the API forgets what
+ * it knows about the player. Fails with a 429 ApiError during the cooldown.
+ */
+export function refreshPlayer(player: PlayerParams): Promise<void> {
+  return post(`${playerApiPath(player)}/refresh`);
+}
+
+/**
+ * After an update, asks the API again for the player's profile and matches. Only the first
+ * page of matches is kept: asking again for each loaded page would cost calls to Riot for
+ * matches that cannot have changed.
+ */
+export async function reloadPlayer(
+  queryClient: QueryClient,
+  player: PlayerParams,
+): Promise<void> {
+  queryClient.setQueryData(matchHistoryQuery(player).queryKey, (history) =>
+    history === undefined
+      ? undefined
+      : {
+          pages: history.pages.slice(0, 1),
+          pageParams: history.pageParams.slice(0, 1),
+        },
+  );
+  await queryClient.invalidateQueries({ queryKey: playerKey(player) });
 }
 
 /**

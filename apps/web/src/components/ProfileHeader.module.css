@@ -24,6 +24,14 @@
   overflow-wrap: anywhere;
 }
 
+/* The tag is smaller and lighter than the name, as in the game. */
+.tag {
+  margin-left: 0.3em;
+  font-size: 0.6em;
+  font-weight: normal;
+  color: var(--color-muted);
+}
+
 .details {
   margin: 0;
   color: var(--color-muted);
