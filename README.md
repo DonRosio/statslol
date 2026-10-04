@@ -102,7 +102,8 @@ pnpm then reports that Vite "failed with signal SIGINT": that is expected).
       words, with a "Try again" button; an unknown Riot ID shows "Player not found" and the
       search form, filled in to correct it.
     - Every page ends with the legal notice Riot's policies require.
-    - `design/wireframes/`: hand-drawn wireframes of the pages.
+    - `design/wireframes/`: hand-drawn wireframes of the pages. `design/logo/`: the logo, 1440 px
+      (`logo.png` with rounded corners, `logo-square.png` full-bleed); `public/` holds its favicon.
     - Styles: each component has its own CSS Module (`Component.module.css`, class names
       made unique by Vite); `src/styles.css` holds the page-wide rules and the design
       tokens (CSS variables: the palette, the colors derived from it, radius). The
