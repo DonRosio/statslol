@@ -121,3 +121,10 @@ const dateTime = new Intl.DateTimeFormat('en', {
 export function formatDateTime(isoDate: string): string {
   return dateTime.format(new Date(isoDate));
 }
+
+/** The side of a team: 100 is the blue side of the map, 200 the red one. */
+export function teamName(teamId: number): string {
+  if (teamId === 100) return 'Blue team';
+  if (teamId === 200) return 'Red team';
+  return 'Team';
+}

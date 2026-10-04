@@ -1,4 +1,9 @@
-import type { MatchSummary, PlayerProfile, StaticData } from '@statslol/shared';
+import type {
+  MatchParticipant,
+  MatchSummary,
+  PlayerProfile,
+  StaticData,
+} from '@statslol/shared';
 
 // Answers of the API used by the tests (Vitest and Playwright): Hide on bush#KR1, on KR.
 
@@ -38,6 +43,7 @@ export const STATIC_DATA: StaticData = {
   summonerSpells: {
     '4': { id: 'SummonerFlash', name: 'Flash' },
     '14': { id: 'SummonerDot', name: 'Ignite' },
+    '2202': { id: 'SummonerCherryFlash', name: 'Flash' },
   },
   runes: {
     '8008': {
@@ -67,10 +73,11 @@ export function matchSummary(
     assists: 9,
     creepScore: 192,
     position: 'MIDDLE',
-    spellIds: [4, 14],
-    runes: { keystoneId: 8008, secondaryStyleId: 8400 },
-    itemIds: [3078, 0, 0, 0, 0, 0, 3340],
-    // The players of the match are not shown yet.
+    // Nothing but the result: tests that look at the spells, runes, items or players of a
+    // match give them (LOADOUT, classicPlayers...).
+    spellIds: [],
+    runes: null,
+    itemIds: [0, 0, 0, 0, 0, 0, 0],
     participants: [],
     ...fields,
   };
@@ -90,7 +97,60 @@ export const ARENA_MATCH = matchSummary('KR_2', {
   assists: 4,
   creepScore: 0,
   position: null,
-  // Arena has one spell (Cherry Flash), and no runes.
-  spellIds: [2202],
-  runes: null,
 });
+
+/** Flash and Ignite, Lethal Tempo with Resolve, Trinity Force and a Stealth Ward. */
+export const LOADOUT: Pick<MatchSummary, 'spellIds' | 'runes' | 'itemIds'> = {
+  spellIds: [4, 14],
+  runes: { keystoneId: 8008, secondaryStyleId: 8400 },
+  itemIds: [3078, 0, 0, 0, 0, 0, 3340],
+};
+
+/** A player of a match; Hide on bush#KR1 with Sylas on the blue side, unless `fields` say otherwise. */
+export function participant(
+  fields: Partial<MatchParticipant> = {},
+): MatchParticipant {
+  return {
+    riotId: { gameName: 'Hide on bush', tagLine: 'KR1' },
+    championId: 517,
+    championName: 'Sylas',
+    teamId: 100,
+    subteamId: null,
+    isPlayer: true,
+    ...fields,
+  };
+}
+
+/** The 10 players of a classic game: Hide on bush#KR1 first, then 4 allies and 5 opponents. */
+export function classicPlayers(): MatchParticipant[] {
+  return Array.from({ length: 10 }, (_, index) =>
+    index === 0
+      ? participant()
+      : participant({
+          riotId: {
+            gameName:
+              index < 5 ? `Ally ${String(index)}` : `Rival ${String(index)}`,
+            tagLine: 'KR1',
+          },
+          championId: 62,
+          championName: 'MonkeyKing',
+          teamId: index < 5 ? 100 : 200,
+          isPlayer: false,
+        }),
+  );
+}
+
+/** The 18 players of an Arena game: 6 teams of 3, Hide on bush#KR1 in team 3. */
+export function arenaPlayers(): MatchParticipant[] {
+  return Array.from({ length: 18 }, (_, index) => {
+    const subteamId = Math.floor(index / 3) + 1;
+    return participant({
+      riotId: { gameName: `Duelist ${String(index)}`, tagLine: 'KR1' },
+      championId: 62,
+      championName: 'MonkeyKing',
+      teamId: 100,
+      subteamId,
+      isPlayer: index === 6,
+    });
+  });
+}

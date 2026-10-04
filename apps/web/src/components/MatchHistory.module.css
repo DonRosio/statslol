@@ -11,81 +11,9 @@
   list-style: none;
 }
 
-/* Height of a match: the image and its padding. */
+/* Height of a match: the champion's image and the padding. */
 .placeholder {
-  height: 4.25rem;
-}
-
-.match {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--color-border);
-  border-left: 4px solid var(--result-color);
-  border-radius: var(--radius);
-  background: var(--result-bg);
-  /* By default a remake: no tint. */
-  --result-color: var(--color-remake);
-  --result-bg: var(--color-surface);
-  --result-text: var(--color-muted);
-  --result-muted: var(--color-muted);
-}
-
-.match[data-result='win'] {
-  --result-color: var(--color-win);
-  --result-bg: var(--color-win-bg);
-  --result-text: var(--color-win-text);
-  --result-muted: var(--color-win-muted);
-}
-
-.match[data-result='loss'] {
-  --result-color: var(--color-loss);
-  --result-bg: var(--color-loss-bg);
-  --result-text: var(--color-loss-text);
-  --result-muted: var(--color-loss-muted);
-}
-
-.match p {
-  margin: 0;
-}
-
-/* Also the empty square shown when the image cannot be loaded. */
-.champion {
-  flex: none;
-  display: block;
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius);
-  background: var(--color-skeleton);
-}
-
-/* 4 columns of text side by side; on a phone, 2 rows of 2. */
-.details {
-  flex: 1;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.5rem 1rem;
-}
-
-@media (width < 36rem) {
-  .details {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-.result {
-  font-weight: bold;
-  color: var(--result-text);
-}
-
-.strong {
-  font-weight: bold;
-}
-
-.muted {
-  font-size: 0.875rem;
-  color: var(--result-muted);
+  height: 5rem;
 }
 
 .more {

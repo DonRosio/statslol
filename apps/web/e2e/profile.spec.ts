@@ -1,8 +1,11 @@
 import {
   ARENA_MATCH,
+  classicPlayers,
+  LOADOUT,
   matchSummary,
   PLAYER_API_PATH,
   PLAYER_PAGE_PATH,
+  PROFILE,
 } from '../src/test-data.ts';
 import { expect, test } from './fixtures.ts';
 import { knowPlayer } from './player-api.ts';
@@ -114,4 +117,50 @@ test('looks up another player from the header of a profile page', async ({
   await search.getByRole('button', { name: 'Look up' }).click();
   await expect(search.getByRole('alert')).toBeVisible();
   await expect(page).toHaveURL(PLAYER_PAGE_PATH);
+});
+
+test('shows the spells, runes, items and players of a match, and opens a player from it', async ({
+  page,
+  api,
+}) => {
+  knowPlayer(api, {
+    matches: [
+      matchSummary('KR_3', { ...LOADOUT, participants: classicPlayers() }),
+    ],
+    nextStart: null,
+  });
+  // The page of an ally, where the link of the match leads.
+  const ally = '/api/v1/players/kr/Ally%201/KR1';
+  api.answer(ally, {
+    ...PROFILE,
+    riotId: { gameName: 'Ally 1', tagLine: 'KR1' },
+  });
+  api.answer(`${ally}/matches?start=0`, { matches: [], nextStart: null });
+
+  await page.goto(PLAYER_PAGE_PATH);
+
+  const match = page.getByRole('listitem');
+  await expect(
+    match.getByRole('group', { name: 'Summoner spells' }).getByRole('img'),
+  ).toHaveCount(2);
+  await expect(
+    match.getByRole('group', { name: 'Runes' }).getByRole('img'),
+  ).toHaveCount(2);
+  await expect(match.getByRole('img', { name: 'Trinity Force' })).toBeVisible();
+  await expect(match.getByRole('group', { name: 'Red team' })).toContainText(
+    'Rival 9',
+  );
+  // The champion, 2 spells, 2 runes, 2 items and 10 players: all displayed by the browser.
+  const images = match.locator('img');
+  await expect(images).toHaveCount(17);
+  for (const image of await images.all()) {
+    await expect(image).toHaveJSProperty('naturalWidth', 1);
+  }
+
+  await match.getByRole('link', { name: 'Ally 1' }).click();
+
+  await expect(page).toHaveURL('/players/kr/Ally%201/KR1');
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Ally 1#KR1' }),
+  ).toBeVisible();
 });

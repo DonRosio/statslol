@@ -131,7 +131,7 @@ describe('design tokens', () => {
   it('are the only colors of the components', () => {
     // A color is a hex code, rgb(), hsl(), or the name of one (grey, Canvas...).
     const colorWord =
-      /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab|lab|lch)\(|\b(?:white|black|gray|grey|red|green|blue|orange|yellow|purple|pink|brown|Canvas|CanvasText|ButtonFace)\b/i;
+      /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab|lab|lch)\(|(?<![\w-])(?:white|black|gray|grey|red|green|blue|orange|yellow|purple|pink|brown|Canvas|CanvasText|ButtonFace)(?![\w-])/i;
     const offenders = stylesheets
       .filter(({ path }) => path !== 'styles.css')
       .flatMap(({ path, css }) =>

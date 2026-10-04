@@ -92,9 +92,12 @@ pnpm then reports that Vite "failed with signal SIGINT": that is expected).
       shows whether the API answers (`/api/health`).
     - `/players/:region/:name/:tag`: profile page of a player, e.g.
       `/players/kr/Hide%20on%20bush/KR1`: icon, level, solo and flex ranks, then the match
-      history, 10 matches at a time ("Show more"). Images (profile icon, champions) come
-      from Data Dragon; without them, the page shows names and empty squares instead. A URL
-      the API would refuse (unknown region, invalid name or tag) shows the "not found" page.
+      history, 10 matches at a time ("Show more"). A match shows its result and queue, the
+      champion with its spells and runes, the score, the 7 item slots, and the players, each
+      linked to their profile (in Arena, the player's team). Images (profile icon, champions,
+      spells, runes, items) come from Data Dragon; without them, the page shows names and
+      empty squares instead. A URL the API would refuse (unknown region, invalid name or
+      tag) shows the "not found" page.
     - "Update" button: the API forgets what it knows about the player, and the page loads
       fresh data. Once every 2 minutes per player: the button counts down the delay.
     - Grey blocks stand in for the ranks and the matches while they load. When the API
