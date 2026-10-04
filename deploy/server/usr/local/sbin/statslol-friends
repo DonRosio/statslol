@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+# Who may open statslol: the friends of /etc/caddy/statslol-friends, one per line (a name
+# and the hash of a password), for which Caddy asks (basic_auth in statslol.caddy).
+#
+#   sudo statslol-friends list              the names of the friends
+#   sudo statslol-friends add <name>        gives access; asks the password twice
+#   sudo statslol-friends password <name>   changes the password of a friend
+#   sudo statslol-friends remove <name>     takes the access back
+#
+# Each change is checked with `caddy validate`, then applied by reloading Caddy, which
+# interrupts nobody. If the check fails, the file is put back as it was.
+set -euo pipefail
+
+readonly FRIENDS=/etc/caddy/statslol-friends
+readonly CADDYFILE=/etc/caddy/Caddyfile
+# The passwords are random (from a password manager): they need no slow hash, and a fast
+# one (70 ms instead of a second with Caddy's default cost) makes a friend's first page,
+# and each wrong password tried on a real name, cheap for the server. A name that does not
+# exist still costs a second: Caddy then compares with a fixed hash of its own (cost 14),
+# so that the answer takes as long and does not tell which names exist.
+readonly BCRYPT_COST=10
+readonly MIN_PASSWORD_LENGTH=16
+
+die() {
+  echo "statslol-friends: $*" >&2
+  exit 1
+}
+
+usage() {
+  sed -n '5,8p' "$0" | sed 's/^#   //' >&2
+  exit 2
+}
+
+check_name() {
+  [[ $1 =~ ^[a-z0-9][a-z0-9_-]{0,31}$ ]] ||
+    die "invalid name '$1': lowercase letters, digits, - and _, at most 32"
+}
+
+list_names() {
+  if [[ -f $FRIENDS ]]; then
+    cut -d ' ' -f 1 "$FRIENDS"
+  fi
+}
+
+is_friend() {
+  list_names | grep -qxF -- "$1"
+}
+
+# Asks a password twice, without showing it, and prints its hash.
+ask_password_hash() {
+  local password confirmation
+  read -rsp 'Password: ' password && echo >&2
+  read -rsp 'Again: ' confirmation && echo >&2
+  [[ $password == "$confirmation" ]] || die 'the two passwords differ'
+  ((${#password} >= MIN_PASSWORD_LENGTH)) ||
+    die "too short: at least $MIN_PASSWORD_LENGTH characters (generate it with KeePassXC)"
+  [[ $password != *[[:space:]]* ]] || die 'no spaces in the password'
+  # Given on standard input, never as an argument: arguments are visible to every user.
+  printf '%s\n' "$password" |
+    caddy hash-password --algorithm bcrypt --bcrypt-cost "$BCRYPT_COST"
+}
+
+# The lines of the file, without the one of the friend given.
+lines_without() {
+  if [[ -f $FRIENDS ]]; then
+    awk -v name="$1" '$1 != name' "$FRIENDS"
+  fi
+}
+
+# Installs the new content (standard input), checks the configuration of Caddy, then
+# reloads it; puts the previous file back if the check fails.
+apply() {
+  # Not local: the trap below runs after the function, when its subshell (the end of a
+  # pipe) ends, error or not.
+  new=$(mktemp)
+  backup=$(mktemp)
+  trap 'rm -f "$new" "$backup"' EXIT
+  cat >"$new"
+  if [[ -f $FRIENDS ]]; then
+    cp -p "$FRIENDS" "$backup"
+  fi
+  # Caddy (group caddy) reads it; nobody else does.
+  install -m 0640 -o root -g caddy "$new" "$FRIENDS"
+  # As the user caddy, with its home folder (/var/lib/caddy): as the service runs.
+  if ! runuser -u caddy -- env HOME=/var/lib/caddy \
+    caddy validate --config "$CADDYFILE" >/dev/null 2>"$new"; then
+    if [[ -s $backup ]]; then
+      install -m 0640 -o root -g caddy "$backup" "$FRIENDS"
+    else
+      rm -f "$FRIENDS"
+    fi
+    cat "$new" >&2
+    die 'Caddy refused the configuration: nothing changed'
+  fi
+  systemctl reload caddy
+}
+
+[[ $EUID -eq 0 ]] || die 'run it with sudo'
+(($# >= 1)) || usage
+command=$1
+shift
+
+case $command in
+  list)
+    (($# == 0)) || usage
+    list_names
+    ;;
+  add)
+    (($# == 1)) || usage
+    check_name "$1"
+    ! is_friend "$1" || die "$1 already has access (to change the password: password $1)"
+    hash=$(ask_password_hash)
+    { lines_without "$1"; echo "$1 $hash"; } | apply
+    echo "$1 has access."
+    ;;
+  password)
+    (($# == 1)) || usage
+    check_name "$1"
+    is_friend "$1" || die "$1 has no access"
+    hash=$(ask_password_hash)
+    { lines_without "$1"; echo "$1 $hash"; } | apply
+    echo "New password of $1 in place."
+    ;;
+  remove)
+    (($# == 1)) || usage
+    check_name "$1"
+    is_friend "$1" || die "$1 has no access"
+    # Caddy refuses basic_auth without any account: keep at least one.
+    (($(list_names | wc -l) > 1)) || die "$1 is the last friend: add another one first"
+    lines_without "$1" | apply
+    echo "$1 has no access any more."
+    ;;
+  *)
+    usage
+    ;;
+esac

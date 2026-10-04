@@ -217,9 +217,11 @@ IPv6 (a phone's connection sharing), or list on the server what could answer in 
 - The other website runs as its own user, `mini-jeux`: a systemd user service,
   `mini-jeux.service`, started at boot because the user "lingers" (`loginctl enable-linger`).
   It listens on `127.0.0.1:3000`.
-- Caddy, installed from its own apt repository, serves both websites. Its admin API listens
-  on `127.0.0.1:2019`: any program of the server can change Caddy's configuration through
-  it. To restrict at step 4.2, with the configuration of statslol.
+- Caddy, installed from its own apt repository, serves both websites
+  ([etc/caddy/Caddyfile](etc/caddy/Caddyfile); statslol's part: [../README.md](../README.md)).
+  Its admin API, which can change its whole configuration, listened on `127.0.0.1:2019`,
+  open to any program of the server; it is now a Unix socket in Caddy's own folder
+  (`/var/lib/caddy/admin.sock`, mode `0200`): only root and Caddy can use it.
 - DNS: the zone of donrgames.fr is managed at OVH. `statslol.donrgames.fr` is an A record
   to the server's IPv4 address; like donrgames.fr, it has no AAAA record (the websites are
   reached in IPv4 only).

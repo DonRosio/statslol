@@ -1,0 +1,139 @@
+# Deploying statslol
+
+statslol runs on the server described in [server/README.md](server/README.md), at
+https://statslol.donrgames.fr, for a list of friends.
+
+- `/srv/statslol/` holds `compose.yaml`, `postgres-initdb/` (copies of this folder) and
+  `.env` (made from `.env.example`, readable by root only). `compose.yaml` runs the images
+  that `.github/workflows/images.yml` publishes to GitHub's container registry for each
+  commit of `main`, tagged `sha-<first 7 characters of the commit>`; `STATSLOL_VERSION` in
+  `.env` picks the version.
+- The Caddy of the server ([server/etc/caddy/](server/etc/caddy/)) serves
+  `statslol.donrgames.fr` with HTTPS, asks a name and a password (the friends of
+  `/etc/caddy/statslol-friends`) and sends the requests to the containers: `/api/*` to
+  the API (port 3100), the rest to the web app (port 3101).
+- `statslol-friends` ([server/usr/local/sbin/](server/usr/local/sbin/)) manages the
+  friends.
+
+Commands marked "computer" run on your computer, from the root of this repository; the
+others on the server, as `ubuntu`.
+
+## Every day
+
+```bash
+sudo statslol-friends list              # who has access
+sudo statslol-friends add <name>        # asks the password twice (16 characters at least)
+sudo statslol-friends password <name>
+sudo statslol-friends remove <name>     # at once, for the next request of that friend
+```
+
+Generate the passwords with a password manager and give each friend theirs privately.
+Caddy only keeps a hash of them. The browser keeps the name and password until it is
+closed: there is no "log out".
+
+Known limit: Caddy checks a name and password with no limit on attempts. Each attempt with
+a name that does not exist costs the server about a second of processor (Caddy then
+compares with a slow hash of its own, measured at 1.1 to 1.7 s, which cannot be changed).
+A few attempts per second would slow down both websites. Acceptable for a private site
+nobody looks for; to fix (blocking addresses after repeated 401s, or a login with its own
+limits) before the site is announced anywhere.
+
+```bash
+cd /srv/statslol
+sudo docker compose ps                             # state of the containers
+sudo docker compose logs api --since 1h            # one JSON line per request
+sudo journalctl -u caddy --since today             # Caddy: certificates, errors
+```
+
+## A new version
+
+When a pull request is merged, the **Images** workflow of `main` publishes the images
+(`Published sha-…` in the summary of the run). Then:
+
+```bash
+# computer, if deploy/compose.yaml changed
+scp deploy/compose.yaml serveur:/tmp/ && ssh -t serveur 'sudo install -m 0644 /tmp/compose.yaml /srv/statslol/'
+```
+
+```bash
+cd /srv/statslol
+sudo sed -i 's/^STATSLOL_VERSION=.*/STATSLOL_VERSION=sha-1a2b3c4/' .env  # the new tag
+sudo docker compose pull
+sudo docker compose run --rm migrate      # the migrations of the new version, if any
+sudo docker compose up --detach --wait    # replaces the containers whose image changed
+```
+
+To go back, do the same with the previous tag. The migrations are not undone: only go
+back to a version that works with the current tables.
+
+## First installation
+
+Done on 2026-10-04.
+
+### 1. Access to the images
+
+The images are private. In GitHub's settings, _Developer settings → Personal access
+tokens → Tokens (classic)_: a token with the scope `read:packages` only (GitHub's
+registry accepts no other kind of token), expiring in a year. Then, on the server, paste
+it at the prompt:
+
+```bash
+sudo docker login ghcr.io --username DonRosio
+```
+
+Docker keeps it in `/root/.docker/config.json`, readable by root only. When it expires,
+the server can no longer download new versions: create another one, log in again.
+
+### 2. The files
+
+```bash
+# computer: one archive through SSH (-h copies the files postgres-initdb links to)
+tar -czh -C deploy compose.yaml .env.example postgres-initdb -C server etc/caddy usr \
+  | ssh serveur 'rm -rf /tmp/statslol && mkdir /tmp/statslol && tar -xz -C /tmp/statslol'
+```
+
+```bash
+sudo install -d /srv/statslol /srv/statslol/postgres-initdb
+sudo install -m 0644 /tmp/statslol/compose.yaml /srv/statslol/
+sudo install -m 0644 /tmp/statslol/postgres-initdb/* /srv/statslol/postgres-initdb/
+# .env, readable by root only: random passwords, the version to run
+sudo bash -c 'umask 077 && cd /srv/statslol && while IFS= read -r line; do
+  case $line in
+    POSTGRES_PASSWORD= | POSTGRES_APP_PASSWORD= | REDIS_PASSWORD=) line+=$(openssl rand -hex 32) ;;
+    STATSLOL_VERSION=) line+=sha-ae7d653 ;;
+  esac
+  printf "%s\n" "$line"
+done < /tmp/statslol/.env.example > .env'
+sudo nano /srv/statslol/.env               # paste the Riot API key after RIOT_API_KEY=
+sudo grep -c '^RIOT_API_KEY=RGAPI-' /srv/statslol/.env   # 1
+```
+
+### 3. Start
+
+```bash
+cd /srv/statslol
+sudo docker compose pull
+sudo docker compose run --rm migrate      # creates the tables
+sudo docker compose up --detach --wait
+curl -s http://127.0.0.1:3100/api/health  # {"status":"ok"}
+```
+
+### 4. Caddy
+
+The site imports the list of friends: it must exist first. `statslol-friends` checks each
+change with `caddy validate` and reloads Caddy, which interrupts no website.
+
+```bash
+sudo install -m 0755 /tmp/statslol/usr/local/sbin/statslol-friends /usr/local/sbin/
+sudo statslol-friends add <your name>
+sudo cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.before-statslol
+sudo install -m 0644 /tmp/statslol/etc/caddy/Caddyfile /tmp/statslol/etc/caddy/statslol.caddy /etc/caddy/
+sudo -u caddy env HOME=/var/lib/caddy caddy validate --config /etc/caddy/Caddyfile
+# Once: the running Caddy still listens on localhost:2019; the new configuration moves its
+# admin API to a socket only root and Caddy can use. Afterwards: sudo systemctl reload caddy
+sudo -u caddy env HOME=/var/lib/caddy caddy reload --config /etc/caddy/Caddyfile --address localhost:2019
+```
+
+Caddy gets the HTTPS certificate of `statslol.donrgames.fr` by itself within seconds
+(`sudo journalctl -u caddy | grep -i 'certificate obtained'`). It is then listed in the
+public logs of certificates: robots visit, and only meet the password.

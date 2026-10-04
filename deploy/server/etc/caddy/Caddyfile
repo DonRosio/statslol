@@ -1,0 +1,19 @@
+# Caddy of the server: serves donrgames.fr and statslol (HTTPS certificates included).
+# The donrgames.fr blocks belong to that website; statslol's site is in statslol.caddy.
+{
+	# The admin API can change the whole configuration of Caddy. By default it listens on
+	# localhost:2019, open to every program of the server; this socket, in Caddy's own
+	# folder (drwxr-x--- caddy), is only open to root and to Caddy, which uses it for
+	# `systemctl reload caddy`.
+	admin unix//var/lib/caddy/admin.sock
+}
+
+www.donrgames.fr {
+	reverse_proxy 127.0.0.1:3000
+}
+
+donrgames.fr {
+	redir https://www.donrgames.fr{uri} permanent
+}
+
+import /etc/caddy/statslol.caddy

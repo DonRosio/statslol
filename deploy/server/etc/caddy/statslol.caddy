@@ -1,0 +1,46 @@
+# statslol, imported by /etc/caddy/Caddyfile. Its containers (deploy/compose.yaml) only
+# listen on the server itself: the API on port 3100, the web app on port 3101.
+statslol.donrgames.fr {
+	# Only the friends listed in statslol-friends may open it: the browser asks a name and
+	# a password. Managed with `sudo statslol-friends`, never by hand.
+	basic_auth {
+		import /etc/caddy/statslol-friends
+	}
+
+	# Security headers. Set at once, not when the answer is written, so that the 401 of
+	# basic_auth, all that strangers ever see, has them too.
+	header {
+		# Browsers will only use HTTPS for this site, for a year.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		# What the pages may load: their own scripts, styles and requests, and the images
+		# of Data Dragon (Riot's CDN). Nothing inline, no plugin, never inside a frame.
+		Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' https://ddragon.leagueoflegends.com; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+		X-Frame-Options DENY
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		Cross-Origin-Opener-Policy same-origin
+		Cross-Origin-Resource-Policy same-origin
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+	}
+	# Apart: removing a header makes Caddy defer the whole directive.
+	header -Server
+
+	encode zstd gzip
+
+	handle /api/* {
+		reverse_proxy 127.0.0.1:3100 {
+			# The API sends security headers of its own (helmet): keep only the ones above.
+			header_down -Strict-Transport-Security
+			header_down -Content-Security-Policy
+			header_down -X-Frame-Options
+			header_down -X-Content-Type-Options
+			header_down -Referrer-Policy
+			header_down -Cross-Origin-Opener-Policy
+			header_down -Cross-Origin-Resource-Policy
+		}
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:3101
+	}
+}
