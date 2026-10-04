@@ -2,14 +2,25 @@ export { healthSchema, type Health } from './health.ts';
 export {
   ITEM_SLOTS,
   MATCHES_PER_PAGE,
+  matchDetailsSchema,
   matchHistorySchema,
+  matchIdSchema,
+  matchObjectivesSchema,
+  matchParamsSchema,
   matchParticipantSchema,
+  matchPlayerSchema,
   matchResultSchema,
   matchSummarySchema,
+  matchTeamSchema,
+  type MatchDetails,
   type MatchHistory,
+  type MatchObjectives,
+  type MatchParams,
   type MatchParticipant,
+  type MatchPlayer,
   type MatchResult,
   type MatchSummary,
+  type MatchTeam,
 } from './match.ts';
 export { playerParamsSchema, type PlayerParams } from './player-params.ts';
 export {

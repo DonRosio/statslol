@@ -6,6 +6,7 @@ import { MemoryMatchStore } from '../db/memory-match-store.ts';
 import { fakeLogger } from '../test-logger.ts';
 import { fakeMatch, PLAYER_PUUID } from '../test-matches.ts';
 import { createMatchHistoryService } from './match-history.ts';
+import { createMatchLoader } from './match-loader.ts';
 
 const ACCOUNT: RiotAccount = {
   puuid: PLAYER_PUUID,
@@ -36,8 +37,7 @@ function setUp(riotMatches: RiotMatch[], { keyGeneration = 1 } = {}) {
   const log = fakeLogger();
   const service = createMatchHistoryService({
     riot,
-    store,
-    keyGeneration,
+    matches: createMatchLoader({ riot, store, keyGeneration }),
     log,
   });
   return { riot, store, log, service };
@@ -173,6 +173,7 @@ describe('getPage', () => {
     expect(participants).toHaveLength(10);
     expect(participants.filter((one) => one.isPlayer)).toHaveLength(1);
     expect(participants[0]).toEqual({
+      participantId: 1,
       riotId: { gameName: 'Player 0', tagLine: 'EUW0' },
       championId: 517,
       championName: 'Sylas',

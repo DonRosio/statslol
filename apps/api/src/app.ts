@@ -21,9 +21,11 @@ import {
   RiotCallsLogController,
 } from './riot-calls.ts';
 import { healthRoutes } from './routes/health.ts';
+import { matchDetailsRoutes } from './routes/match-details.ts';
 import { playerRoutes } from './routes/players.ts';
 import { staticDataRoutes } from './routes/static-data.ts';
 import { createMatchHistoryService } from './services/match-history.ts';
+import { createMatchLoader } from './services/match-loader.ts';
 import { zodSerializerCompiler, zodValidatorCompiler } from './zod.ts';
 
 // Methods that only read: other websites may make browsers send them (links, images...).
@@ -136,10 +138,14 @@ export function buildApp(
   const cachedRiot = cachedRiotClient(riot, cache, {
     keyGeneration: config.riotKeyGeneration,
   });
-  const matchHistory = createMatchHistoryService({
+  const matches = createMatchLoader({
     riot: cachedRiot,
     store: options.matchStore ?? connectDatabase(app, config.database),
     keyGeneration: config.riotKeyGeneration,
+  });
+  const matchHistory = createMatchHistoryService({
+    riot: cachedRiot,
+    matches,
     log: app.log,
   });
 
@@ -150,6 +156,7 @@ export function buildApp(
     matchHistory,
     cache,
   });
+  app.register(matchDetailsRoutes, { prefix: '/api/v1', matches });
   app.register(staticDataRoutes, {
     prefix: '/api/v1',
     cache,

@@ -111,6 +111,7 @@ export function participant(
   fields: Partial<MatchParticipant> = {},
 ): MatchParticipant {
   return {
+    participantId: 1,
     riotId: { gameName: 'Hide on bush', tagLine: 'KR1' },
     championId: 517,
     championName: 'Sylas',
@@ -127,6 +128,7 @@ export function classicPlayers(): MatchParticipant[] {
     index === 0
       ? participant()
       : participant({
+          participantId: index + 1,
           riotId: {
             gameName:
               index < 5 ? `Ally ${String(index)}` : `Rival ${String(index)}`,
@@ -145,6 +147,7 @@ export function arenaPlayers(): MatchParticipant[] {
   return Array.from({ length: 18 }, (_, index) => {
     const subteamId = Math.floor(index / 3) + 1;
     return participant({
+      participantId: index + 1,
       riotId: { gameName: `Duelist ${String(index)}`, tagLine: 'KR1' },
       championId: 62,
       championName: 'MonkeyKing',

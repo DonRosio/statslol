@@ -1,4 +1,4 @@
-import type { Platform, RiotClient, RiotMatch } from '@statslol/riot-client';
+import type { RiotClient, RiotMatch } from '@statslol/riot-client';
 import {
   MATCHES_PER_PAGE,
   type MatchHistory,
@@ -8,8 +8,19 @@ import {
 } from '@statslol/shared';
 import type { FastifyBaseLogger } from 'fastify';
 
-import type { MatchStore } from '../db/matches.ts';
-import { createSingleFlight } from '../single-flight.ts';
+import {
+  durationSecondsOf,
+  itemIdsOf,
+  placementOf,
+  positionOf,
+  resultOf,
+  riotIdOf,
+  runesOf,
+  spellIdsOf,
+  subteamOf,
+  type RiotParticipant,
+} from './match-fields.ts';
+import type { MatchLoader } from './match-loader.ts';
 import { PLATFORM_BY_REGION } from './platforms.ts';
 
 export interface MatchHistoryService {
@@ -26,35 +37,18 @@ export interface MatchHistoryService {
 }
 
 /**
- * Builds match histories. Riot gives the list of a player's match IDs; each match is
- * fetched from Riot once, then read from the database.
+ * Builds match histories. Riot gives the list of a player's match IDs; the matches
+ * themselves come from the loader (the database, or Riot once).
  */
 export function createMatchHistoryService({
   riot,
-  store,
-  keyGeneration,
+  matches: loader,
   log,
 }: {
   readonly riot: RiotClient;
-  readonly store: MatchStore;
-  readonly keyGeneration: number;
+  readonly matches: MatchLoader;
   readonly log: FastifyBaseLogger;
 }): MatchHistoryService {
-  // Friends who played together look at the same matches: each one is fetched only once,
-  // even when several pages ask for it at the same time.
-  const singleFlight = createSingleFlight();
-
-  function fetchMatch(
-    platform: Platform,
-    id: string,
-  ): Promise<RiotMatch | null> {
-    return singleFlight.run(id, async () => {
-      const match = await riot.getMatch(platform, id);
-      if (match !== null) await store.save(match, keyGeneration);
-      return match;
-    });
-  }
-
   return {
     async getPage({ region, gameName, tagLine, start }) {
       const account = await riot.getAccountByRiotId({ gameName, tagLine });
@@ -65,17 +59,7 @@ export function createMatchHistoryService({
         start,
         count: MATCHES_PER_PAGE,
       });
-      const stored = await store.findMany(ids, keyGeneration);
-      // The missing matches are fetched at the same time: the Riot client spaces the calls
-      // out to respect the rate limits.
-      const games = await Promise.all(
-        ids.map((id) => {
-          const match = stored.get(id);
-          return match === undefined
-            ? fetchMatch(platform, id)
-            : Promise.resolve(match);
-        }),
-      );
+      const games = await loader.getMany(platform, ids);
 
       const matches = games.flatMap((game) => {
         // Riot listed the match, but does not have it any more: left out.
@@ -111,89 +95,37 @@ function summarize(match: RiotMatch, puuid: string): MatchSummary | null {
     id: match.metadata.matchId,
     queueId: match.info.queueId,
     startedAt: new Date(match.info.gameStartTimestamp).toISOString(),
-    durationSeconds: durationSeconds(match.info),
-    result: player.gameEndedInEarlySurrender
-      ? 'remake'
-      : player.win
-        ? 'win'
-        : 'loss',
-    placement:
-      player.placement === undefined || player.placement === 0
-        ? null
-        : player.placement,
+    durationSeconds: durationSecondsOf(match.info),
+    result: resultOf(player),
+    placement: placementOf(player),
     championId: player.championId,
     championName: player.championName,
     kills: player.kills,
     deaths: player.deaths,
     assists: player.assists,
     creepScore: player.totalMinionsKilled + player.neutralMinionsKilled,
-    position: player.teamPosition === '' ? null : player.teamPosition,
-    spellIds: [player.summoner1Id, player.summoner2Id].filter(isSet),
+    position: positionOf(player),
+    spellIds: spellIdsOf(player),
     runes: runesOf(player),
-    itemIds: [
-      player.item0,
-      player.item1,
-      player.item2,
-      player.item3,
-      player.item4,
-      player.item5,
-      player.item6,
-    ].map((id) => id ?? 0),
+    itemIds: itemIdsOf(player),
     participants: match.info.participants.map((participant) =>
       summarizeParticipant(participant, puuid),
     ),
   };
 }
 
-type RiotParticipant = RiotMatch['info']['participants'][number];
-
-/** An ID that points to something: Riot uses 0 (or leaves it out) for "none". */
-function isSet(id: number | undefined): id is number {
-  return id !== undefined && id > 0;
-}
-
-/**
- * The keystone and the secondary tree of a player, or null if they had no runes (Arena, or
- * a match that does not tell them). Riot lists the primary tree first, then the secondary.
- */
-function runesOf(player: RiotParticipant): MatchSummary['runes'] {
-  const [primary, secondary] = player.perks?.styles ?? [];
-  const keystoneId = primary?.selections[0]?.perk;
-  const secondaryStyleId = secondary?.style;
-  return isSet(keystoneId) && isSet(secondaryStyleId)
-    ? { keystoneId, secondaryStyleId }
-    : null;
-}
-
 function summarizeParticipant(
   participant: RiotParticipant,
   puuid: string,
 ): MatchParticipant {
-  const { riotIdGameName, riotIdTagline } = participant;
   return {
+    participantId: participant.participantId,
     // The PUUID stays on the server: the site only needs the Riot ID to link to the player.
-    riotId:
-      riotIdGameName === undefined ||
-      riotIdTagline === undefined ||
-      riotIdGameName === ''
-        ? null
-        : { gameName: riotIdGameName, tagLine: riotIdTagline },
+    riotId: riotIdOf(participant),
     championId: participant.championId,
     championName: participant.championName,
     teamId: participant.teamId,
-    subteamId: isSet(participant.playerSubteamId)
-      ? participant.playerSubteamId
-      : null,
+    subteamId: subteamOf(participant),
     isPlayer: participant.puuid === puuid,
   };
-}
-
-/**
- * Riot's advice for gameDuration: in milliseconds when there is no gameEndTimestamp
- * (matches before patch 11.20, in 2021), in seconds otherwise.
- */
-function durationSeconds(info: RiotMatch['info']): number {
-  return info.gameEndTimestamp === undefined
-    ? Math.round(info.gameDuration / 1000)
-    : info.gameDuration;
 }

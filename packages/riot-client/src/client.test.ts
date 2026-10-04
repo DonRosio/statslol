@@ -454,6 +454,7 @@ function riotMatch(matchId = 'EUW1_7123456789') {
           teamPosition: 'JUNGLE',
           win: false,
           gameEndedInEarlySurrender: false,
+          participantId: 1,
           teamId: 100,
           item0: 3147,
           challenges: { kda: 1 },

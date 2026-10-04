@@ -59,6 +59,12 @@ pnpm then reports that Vite "failed with signal SIGINT": that is expected).
       player, the most recent first, and the `start` of the next page. Each match is fetched
       from Riot once, then stored in PostgreSQL. Each one has the player's result, KDA,
       spells, runes and items, and its 10 players (18 in Arena: Riot ID, champion, side).
+    - `GET /api/v1/matches/:region/:matchId`: the details of a match, e.g.
+      `/api/v1/matches/euw/EUW1_8001854388`: its teams (the 2 sides, or in Arena the teams of
+      players, the best place first) with the result, the kills, the gold and the objectives
+      of each, and all their players (level, spells, runes, items, score, damage, gold,
+      vision). Read from PostgreSQL; fetched from Riot once if the match is not there yet.
+      400 for the match of another server, 404 for one Riot does not have.
     - `POST /api/v1/players/:region/:name/:tag/refresh`: the "Update" button. The next
       lookups of the player get fresh data from Riot. At most once every 2 minutes per
       player, whoever asks: otherwise 429, with the seconds to wait in `Retry-After`.

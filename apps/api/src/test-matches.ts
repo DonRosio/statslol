@@ -12,6 +12,7 @@ export function fakeMatch(
 ): RiotMatch {
   const participant = (puuid: string, index: number): Participant => ({
     puuid,
+    participantId: index + 1,
     championId: 517,
     championName: 'Sylas',
     kills: 7,
@@ -41,6 +42,10 @@ export function fakeMatch(
         { style: 8400, selections: [{ perk: 8473 }, { perk: 8242 }] },
       ],
     },
+    champLevel: 16 + index,
+    totalDamageDealtToChampions: 10_000 + index * 1000,
+    goldEarned: 12_000 + index * 100,
+    visionScore: 20 + index,
     // Some of the ~150 other fields, which the API keeps without reading them.
     challenges: { kda: 8 },
   });

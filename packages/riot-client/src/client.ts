@@ -87,11 +87,18 @@ export const riotLeagueEntrySchema = z.object({
 // Match IDs end up in URLs: the platform, then a number, e.g. "EUW1_7123456789".
 export const riotMatchIdSchema = z.string().regex(/^[A-Z0-9]+_\d+$/);
 
+// What a team took on the map: how many towers, dragons... (and who was first, ignored).
+const riotObjectiveSchema = z.looseObject({
+  kills: z.number().int().nonnegative(),
+});
+
 // A match holds about 150 fields per player: only the ones the API uses are checked. The
 // others are kept as they are (looseObject), so that a stored match keeps all of Riot's data.
 const riotParticipantSchema = z.looseObject({
   // Not used in URLs: only compared with the PUUID of the player looked up.
   puuid: z.string(),
+  // 1 to 10 (1 to 18 in Arena): the place of the player in the lists of the match.
+  participantId: z.number().int().positive(),
   championId: z.number().int(),
   // Riot's internal name, used in Data Dragon file names (e.g. "MonkeyKing" for Wukong).
   championName: z.string(),
@@ -112,6 +119,12 @@ const riotParticipantSchema = z.looseObject({
   teamId: z.number().int().nonnegative(),
   // Arena: the team of the player (1 to 6 in 2026), 0 or missing elsewhere.
   playerSubteamId: z.number().int().nonnegative().optional(),
+  // What the details of a match show. Not read as required: a field Riot did not send
+  // counts as 0, so that no match is refused for it.
+  champLevel: z.number().int().nonnegative().optional(),
+  totalDamageDealtToChampions: z.number().int().nonnegative().optional(),
+  goldEarned: z.number().int().nonnegative().optional(),
+  visionScore: z.number().int().nonnegative().optional(),
   // The player's Riot ID at the time of the match. Missing in matches before 2023, which
   // only had the summoner name.
   riotIdGameName: z.string().optional(),
@@ -154,6 +167,24 @@ export const riotMatchSchema = z.looseObject({
     gameDuration: z.number().int().nonnegative(),
     queueId: z.number().int().nonnegative(),
     participants: z.array(riotParticipantSchema),
+    // The 2 sides (100 and 200; Arena has 2 as well, whatever the teams of players), with
+    // what each took on the map. Missing in some old matches.
+    teams: z
+      .array(
+        z.looseObject({
+          teamId: z.number().int().nonnegative(),
+          objectives: z
+            .looseObject({
+              baron: riotObjectiveSchema.optional(),
+              dragon: riotObjectiveSchema.optional(),
+              inhibitor: riotObjectiveSchema.optional(),
+              riftHerald: riotObjectiveSchema.optional(),
+              tower: riotObjectiveSchema.optional(),
+            })
+            .optional(),
+        }),
+      )
+      .optional(),
   }),
 });
 
