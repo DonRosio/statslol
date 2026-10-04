@@ -39,6 +39,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       # Bundling can fail where type-checking passes (e.g. an import Vite cannot resolve).
+      # The build also fails if the bundle holds a Riot key or the Riot client.
       - run: pnpm build
 
   e2e:

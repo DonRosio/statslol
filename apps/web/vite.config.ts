@@ -6,6 +6,9 @@ const API_URL = 'http://localhost:3000';
 
 export default defineConfig({
   plugins: [react()],
+  // Vite builds the VITE_* variables of .env files into the JavaScript sent to every
+  // visitor. The web app needs none: no .env file is read, so no secret can end up there.
+  envDir: false,
   server: {
     // The page calls the API at the same address as itself (/api/...), and the Vite server
     // forwards these requests to the API, as Caddy will in production. For the browser, the

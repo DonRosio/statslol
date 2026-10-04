@@ -34,7 +34,7 @@ pnpm then reports that Vite "failed with signal SIGINT": that is expected).
 | Command            | What it does                                                            |
 | ------------------ | ----------------------------------------------------------------------- |
 | `pnpm dev`         | Starts the API and the web app, reloaded on every change                |
-| `pnpm build`       | Builds the web app for production, in `apps/web/dist`                   |
+| `pnpm build`       | Builds the web app in `apps/web/dist`, then checks it has no secret     |
 | `pnpm check`       | Runs the checks below, in order, except `test:db`                       |
 | `pnpm format`      | Formats every file with Prettier                                        |
 | `pnpm lint`        | Lints with ESLint (type-aware rules, rules of React); fails on warnings |
@@ -112,8 +112,16 @@ pnpm then reports that Vite "failed with signal SIGINT": that is expected).
     Riot ID, of a region and of the parts of a player URL, so that both validate user
     input with the same rules.
   - `packages/riot-client`: client of the Riot API. Server-only: it sends the API key,
-    so browser code must never import it. Its `onCall` option reports each request sent
-    to Riot (endpoint, status, duration).
-    It spreads its calls to stay under Riot's rate limits, learned from Riot's answers;
-    `pnpm --filter @statslol/riot-client check:rate-limits` checks it with 150 real calls
-    (about 2 minutes: Riot answers 429 to none of them).
+    so browser code must never import it. Four barriers keep the key out of the pages:
+    - ESLint refuses any import of it, or of the API's code, in `apps/web` and in
+      `packages/shared` (package name, relative path, `import()`);
+    - pnpm only lets `apps/web` resolve the packages of its own `package.json`;
+    - the web app reads no `.env` file (`envDir: false` in `vite.config.ts`): Vite would
+      build their `VITE_*` variables into the JavaScript sent to visitors;
+    - `pnpm build` searches every file of `apps/web/dist` for a Riot key and for the Riot
+      client's address and header (`apps/web/scripts/check-bundle.ts`), and fails if one
+      is there. Its `onCall` option reports each request sent
+      to Riot (endpoint, status, duration).
+      It spreads its calls to stay under Riot's rate limits, learned from Riot's answers;
+      `pnpm --filter @statslol/riot-client check:rate-limits` checks it with 150 real calls
+      (about 2 minutes: Riot answers 429 to none of them).

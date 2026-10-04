@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/check-bundle.ts",
     "preview": "vite preview",
     "typecheck": "tsc --build",
-    "test:e2e": "vite build && playwright test"
+    "test:e2e": "pnpm build && playwright test"
   },
   "dependencies": {
     "@statslol/shared": "workspace:*",
