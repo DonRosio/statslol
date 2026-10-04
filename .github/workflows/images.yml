@@ -1,0 +1,94 @@
+name: Images
+
+# Builds the Docker images of the API and of the web app, and checks that statslol starts
+# with them as in production (deploy/compose.yaml). On main, publishes them to GitHub's
+# container registry, where the server downloads them: ghcr.io/donrosio/statslol-api and
+# ghcr.io/donrosio/statslol-web, tagged sha-<7 first characters of the commit> and main.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Never cancel a publication of main halfway; a pull request only needs its last run.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  images:
+    name: Build, try, publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      # To publish the images. GitHub cannot grant it to main only: on pull requests, the
+      # token is simply not used (the publishing steps only run for main).
+      packages: write
+    env:
+      REGISTRY: ghcr.io/donrosio
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Tag of this version
+        run: echo "STATSLOL_VERSION=sha-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      # Each build only reads the files listed in .dockerignore.
+      - name: Build the image of the API
+        run: docker build --file apps/api/Dockerfile --tag "$REGISTRY/statslol-api:$STATSLOL_VERSION" .
+      # Also checks that the web app holds no secret (scripts/check-bundle.ts).
+      - name: Build the image of the web app
+        run: docker build --file apps/web/Dockerfile --tag "$REGISTRY/statslol-web:$STATSLOL_VERSION" .
+
+      # The settings of production, with random passwords and a fake Riot API key (the
+      # API only sends it when a player is looked up).
+      - name: Write the settings
+        run: |
+          {
+            echo "STATSLOL_VERSION=$STATSLOL_VERSION"
+            echo "RIOT_API_KEY=RGAPI-00000000-0000-0000-0000-000000000000"
+            for name in POSTGRES_PASSWORD POSTGRES_APP_PASSWORD REDIS_PASSWORD; do
+              value="$(openssl rand -hex 32)"
+              echo "::add-mask::$value"
+              echo "$name=$value"
+            done
+          } > deploy/.env
+
+      - name: Start statslol as in production
+        working-directory: deploy
+        run: |
+          docker compose run --rm migrate
+          docker compose up --detach --wait
+
+      - name: Try it
+        run: |
+          set -x
+          curl --fail --silent --show-error http://127.0.0.1:3100/api/health
+          curl --fail --silent --show-error http://127.0.0.1:3100/api/v1/static-data > /dev/null
+          # Every page of the app is index.html; a missing script is a 404.
+          curl --fail --silent --show-error http://127.0.0.1:3101/ | grep --quiet '<div id="root">'
+          curl --fail --silent --show-error http://127.0.0.1:3101/players/euw/Name/TAG | grep --quiet '<div id="root">'
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:3101/assets/missing.js)" = 404
+
+      - name: Logs of the containers
+        if: always()
+        working-directory: deploy
+        run: docker compose logs --no-color
+
+      - name: Publish the images
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          for image in statslol-api statslol-web; do
+            docker tag "$REGISTRY/$image:$STATSLOL_VERSION" "$REGISTRY/$image:main"
+            docker push "$REGISTRY/$image:$STATSLOL_VERSION"
+            docker push "$REGISTRY/$image:main"
+          done
+          docker logout ghcr.io
+          echo "Published $STATSLOL_VERSION" >> "$GITHUB_STEP_SUMMARY"

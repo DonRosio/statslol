@@ -84,6 +84,48 @@ describe('logs', () => {
   });
 });
 
+describe('behind a reverse proxy', () => {
+  // The address of the client as the API sees it, from the log line of the request.
+  async function clientAddress(
+    trustProxy: Config['trustProxy'],
+    connectionFrom: string,
+  ) {
+    const lines: string[] = [];
+    const app = createApp(
+      { logLevel: 'info', trustProxy },
+      { logStream: { write: (line) => lines.push(line) } },
+    );
+    await app.inject({
+      method: 'GET',
+      url: '/api/health',
+      remoteAddress: connectionFrom,
+      headers: { 'x-forwarded-for': '203.0.113.7' },
+    });
+    const entries = lines.map(
+      (line) =>
+        JSON.parse(line) as { msg?: string; req?: { remoteAddress?: string } },
+    );
+    return entries.find((entry) => entry.msg === 'incoming request')?.req
+      ?.remoteAddress;
+  }
+
+  it('takes the address of the client from a trusted proxy', async () => {
+    expect(await clientAddress(['172.30.250.1'], '172.30.250.1')).toBe(
+      '203.0.113.7',
+    );
+  });
+
+  it('ignores the address sent by anyone else', async () => {
+    expect(await clientAddress(['172.30.250.1'], '198.51.100.9')).toBe(
+      '198.51.100.9',
+    );
+  });
+
+  it('trusts nobody by default', async () => {
+    expect(await clientAddress(false, '172.30.250.1')).toBe('172.30.250.1');
+  });
+});
+
 describe('security', () => {
   it.each([
     ['a normal answer', '/api/health', 200],

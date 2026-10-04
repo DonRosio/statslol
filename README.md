@@ -66,6 +66,7 @@ pnpm then reports that Vite "failed with signal SIGINT": that is expected).
       name of each champion, by champion ID. Asked to Data Dragon at most once an hour.
     - Every answer carries security headers (helmet). Requests are limited per IP address
       (60 per minute, 20 for player lookups, none for the health check): beyond, 429.
+      Behind Caddy, the address of a visitor is the one Caddy gives (`TRUST_PROXY`).
       Unexpected errors answer a generic 500; their details only go to the logs.
       Requests that change something (POST...) sent by a page of another website are
       refused (403): browsers tell where requests come from (`Sec-Fetch-Site`).
@@ -126,5 +127,20 @@ pnpm then reports that Vite "failed with signal SIGINT": that is expected).
     - `pnpm build` searches every file of `apps/web/dist` for a Riot key and for the Riot
       client's address and header (`apps/web/scripts/check-bundle.ts`), and fails if one
       is there.
-- `deploy/server/`: the files added to the server (VPS) the site runs on, and how to set up
-  a server the same way: SSH with keys only, firewall, automatic updates, swap, Docker.
+- `deploy/`: statslol in production.
+  - `deploy/compose.yaml`: runs the images of the API and of the web app with PostgreSQL
+    and Redis, each container read-only, without Linux capabilities and with a memory
+    ceiling. The database and the cache have no network access outside; only the API and
+    the web app are published, on the server itself (ports 3100 and 3101), for its Caddy.
+    `deploy/.env.example` lists its settings.
+  - The images: `apps/api/Dockerfile` (Node.js runs the TypeScript files, as an
+    unprivileged user, without npm) and `apps/web/Dockerfile` (the files of `vite build`,
+    served by Caddy, `apps/web/Caddyfile`). Built from the root of the repository; only the
+    files listed in `.dockerignore` go in (never `.env`).
+  - `.github/workflows/images.yml` builds them for each pull request and starts statslol
+    with them as in production, to try it. For each commit of `main`, it also publishes
+    them to GitHub's container registry, where the server downloads them:
+    `ghcr.io/donrosio/statslol-api` and `ghcr.io/donrosio/statslol-web`, tagged
+    `sha-<first 7 characters of the commit>`.
+  - `deploy/server/`: the files added to the server (VPS) the site runs on, and how to set
+    up a server the same way: SSH with keys only, firewall, automatic updates, swap, Docker.

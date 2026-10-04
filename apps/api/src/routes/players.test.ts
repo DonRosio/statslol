@@ -259,6 +259,28 @@ describe('limits and unexpected errors', () => {
     });
   });
 
+  it('counts the lookups of each client apart behind a trusted proxy', async () => {
+    const app = buildApp(
+      // inject() connects from 127.0.0.1, here the address of the proxy.
+      { ...config, trustProxy: ['127.0.0.1'] },
+      { riot: fakeRiot(), ...emptyStores() },
+    );
+    onTestFinished(() => app.close());
+    const lookUp = (client: string) =>
+      app.inject({
+        method: 'GET',
+        url: '/api/v1/players/kr/Hide%20on%20bush/KR1',
+        headers: { 'x-forwarded-for': client },
+      });
+
+    for (let request = 1; request <= 20; request++) {
+      expect((await lookUp('203.0.113.1')).statusCode).toBe(200);
+    }
+    expect((await lookUp('203.0.113.1')).statusCode).toBe(429);
+    // Another visitor behind the same proxy still has all their lookups.
+    expect((await lookUp('203.0.113.2')).statusCode).toBe(200);
+  });
+
   it('answers an unexpected error without its details, which go to the logs', async () => {
     const lines: string[] = [];
     const riot = fakeRiot();

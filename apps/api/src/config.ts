@@ -50,11 +50,27 @@ const envSchema = z
     POSTGRES_HOST: z.string().default('localhost'),
     POSTGRES_PORT: servicePortSchema.default(5432),
     POSTGRES_APP_PASSWORD: passwordSchema,
+    // The reverse proxies in front of the API (Caddy) that may give the address of the client,
+    // in X-Forwarded-For: IP addresses or ranges, comma-separated. Anyone else could send a
+    // fake one to escape the limits per address. Unset: the address is the connection's.
+    TRUST_PROXY: z
+      .string()
+      .transform((value) => value.split(',').map((address) => address.trim()))
+      .pipe(
+        z.array(
+          z.union([z.ipv4(), z.ipv6(), z.cidrv4(), z.cidrv6()], {
+            error:
+              'Expected IP addresses or ranges, e.g. 127.0.0.1,172.30.250.0/24',
+          }),
+        ),
+      )
+      .optional(),
   })
   .transform((env) => ({
     host: env.HOST,
     port: env.PORT,
     logLevel: env.LOG_LEVEL,
+    trustProxy: env.TRUST_PROXY ?? false,
     riotApiKey: env.RIOT_API_KEY,
     riotKeyGeneration: env.RIOT_KEY_GENERATION,
     redis: {

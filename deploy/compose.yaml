@@ -1,0 +1,150 @@
+# statslol in production, on the server (deploy/server/README.md): this folder is copied to
+# /srv/statslol, next to a .env made from deploy/.env.example. From there:
+#   sudo docker compose pull                    downloads the images of STATSLOL_VERSION
+#   sudo docker compose run --rm migrate        brings the database up to date
+#   sudo docker compose up --detach --wait      (re)starts what changed, waits until healthy
+# The images come from GitHub's container registry, built by .github/workflows/images.yml.
+#
+# Not the project name of the development compose.yaml ("statslol"): on a development machine,
+# trying this file must not replace the development database.
+name: statslol-prod
+
+# Settings shared by the containers of statslol: a file system they cannot write to (except
+# /tmp, in memory), no Linux capability, restarted after a crash or a reboot. Docker already
+# forbids them to gain privileges (no-new-privileges, deploy/server/etc/docker/daemon.json).
+x-hardening: &hardening
+  read_only: true
+  tmpfs: [/tmp]
+  cap_drop: [ALL]
+  restart: unless-stopped
+
+services:
+  postgres:
+    # Same image as the development compose.yaml (see the comments there).
+    image: postgres:18.6-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+    <<: *hardening
+    # Its start script gives the data folder to the user "postgres", then becomes it: the
+    # capabilities it needs for that, and nothing else.
+    cap_add: [CHOWN, DAC_READ_SEARCH, FOWNER, SETGID, SETUID]
+    # Its Unix socket, besides /tmp.
+    tmpfs: [/tmp, /var/run/postgresql]
+    environment:
+      POSTGRES_DB: statslol
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set it in .env, see .env.example}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?set it in .env, see .env.example}
+      POSTGRES_INITDB_ARGS: --locale-provider=builtin --locale=C.UTF-8
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      # Creates the role of the API, once (a link to docker/postgres/initdb in the repository).
+      - ./postgres-initdb:/docker-entrypoint-initdb.d:ro
+    networks: [backend]
+    healthcheck:
+      test:
+        - CMD
+        - pg_isready
+        - --host=127.0.0.1
+        - --username=postgres
+        - --dbname=statslol
+      start_period: 30s
+      start_interval: 1s
+    # The server has 4 GB of memory, shared with another website: each container gets a
+    # ceiling, so that a runaway one cannot starve the others.
+    mem_limit: 1g
+
+  redis:
+    image: redis:8.10.2-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+    <<: *hardening
+    user: redis
+    entrypoint: [redis-server]
+    command:
+      - --requirepass
+      - ${REDIS_PASSWORD:?set it in .env, see .env.example}
+      - --save
+      - ''
+      - --appendonly
+      - 'no'
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - allkeys-lru
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
+    networks: [backend]
+    healthcheck:
+      test: [CMD-SHELL, redis-cli ping | grep -q PONG]
+      start_period: 30s
+      start_interval: 1s
+    mem_limit: 320m
+
+  api:
+    image: ghcr.io/donrosio/statslol-api:${STATSLOL_VERSION:?set it in .env, see .env.example}
+    <<: *hardening
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      RIOT_API_KEY: ${RIOT_API_KEY:?set it in .env, see .env.example}
+      RIOT_KEY_GENERATION: ${RIOT_KEY_GENERATION:-1}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      POSTGRES_HOST: postgres
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # The Caddy of the server reaches the API through the published port below: Docker
+      # forwards these connections from the gateway of the "frontend" network.
+      TRUST_PROXY: 172.30.250.1
+    ports:
+      # Only reachable from the server itself, by its Caddy: published ports bypass the
+      # firewall (deploy/server/README.md). 3000 is taken by the other website.
+      - 127.0.0.1:3100:3000
+    # "backend" for the database and the cache; "frontend" to be reached, and to call Riot.
+    networks: [backend, frontend]
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:3000/api/health]
+      start_period: 30s
+      start_interval: 1s
+    mem_limit: 512m
+
+  web:
+    image: ghcr.io/donrosio/statslol-web:${STATSLOL_VERSION}
+    <<: *hardening
+    ports:
+      - 127.0.0.1:3101:8080
+    networks: [frontend]
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:8080/]
+      start_period: 30s
+      start_interval: 1s
+    mem_limit: 128m
+
+  # Not a service: run on demand, by `docker compose run --rm migrate`.
+  migrate:
+    image: ghcr.io/donrosio/statslol-api:${STATSLOL_VERSION}
+    <<: *hardening
+    restart: 'no'
+    profiles: [tools]
+    command: [node, apps/api/src/db/migrate.ts]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      # The superuser: the migrations change the tables. Only this container gets it.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    networks: [backend]
+
+networks:
+  # The database and the cache: no access to the Internet, nor from it.
+  backend:
+    internal: true
+  # A fixed range, so that TRUST_PROXY above knows the address of its gateway.
+  frontend:
+    ipam:
+      config:
+        - subnet: 172.30.250.0/24
+          gateway: 172.30.250.1
+
+volumes:
+  postgres-data:

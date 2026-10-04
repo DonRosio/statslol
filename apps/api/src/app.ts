@@ -69,6 +69,9 @@ export function buildApp(
     },
     // Adds to the log line of each request the number of calls it sent to Riot.
     logController: new RiotCallsLogController(),
+    // Behind Caddy, every connection comes from Caddy: the address of the client, which the
+    // limits per address count, is the one Caddy gives in X-Forwarded-For.
+    trustProxy: config.trustProxy,
   });
 
   app.setValidatorCompiler(zodValidatorCompiler);

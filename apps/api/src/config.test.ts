@@ -38,6 +38,8 @@ describe('loadConfig', () => {
       host: 'localhost',
       port: 3000,
       logLevel: 'info',
+      // Nobody may give the address of the client: it is the address of the connection.
+      trustProxy: false,
       riotKeyGeneration: 1,
       redis: { host: 'localhost', port: 6379 },
       // The role of the API, which can only read and write rows.
@@ -65,6 +67,7 @@ describe('loadConfig', () => {
         POSTGRES_HOST: 'postgres',
         POSTGRES_PORT: '5433',
         RIOT_KEY_GENERATION: '2',
+        TRUST_PROXY: '172.30.250.1',
       }),
     );
 
@@ -72,6 +75,7 @@ describe('loadConfig', () => {
       host: '0.0.0.0',
       port: 8080,
       logLevel: 'debug',
+      trustProxy: ['172.30.250.1'],
       riotKeyGeneration: 2,
       redis: { host: 'redis', port: 6380 },
       database: { host: 'postgres', port: 5433 },
@@ -89,6 +93,7 @@ describe('loadConfig', () => {
       'redis',
       'riotApiKey',
       'riotKeyGeneration',
+      'trustProxy',
     ]);
   });
 
@@ -143,6 +148,33 @@ describe('loadConfig', () => {
       ).toContain('RIOT_KEY_GENERATION');
     },
   );
+
+  it('reads several proxies in TRUST_PROXY: addresses and ranges, IPv4 and IPv6', () => {
+    const config = expectValid(
+      loadConfig({
+        ...REQUIRED,
+        TRUST_PROXY: '127.0.0.1, 172.30.250.0/24,::1,fd00::/8',
+      }),
+    );
+
+    expect(config.trustProxy).toEqual([
+      '127.0.0.1',
+      '172.30.250.0/24',
+      '::1',
+      'fd00::/8',
+    ]);
+  });
+
+  it.each([
+    ['a host name', 'caddy'],
+    ['an empty entry', '127.0.0.1,'],
+    ['a range too wide', '10.0.0.0/33'],
+    ['an address out of range', '256.0.0.1'],
+  ])('rejects TRUST_PROXY with %s', (_case, value) => {
+    expect(
+      expectInvalid(loadConfig({ ...REQUIRED, TRUST_PROXY: value })),
+    ).toMatch(/Expected IP addresses or ranges[^\n]*\n.*TRUST_PROXY/);
+  });
 
   it.each(['abc', '0', '65536'])('rejects REDIS_PORT=%s', (port) => {
     expect(

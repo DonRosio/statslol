@@ -1,0 +1,32 @@
+# What `docker build` may read from the repository (the "build context") to make the images
+# of apps/api/Dockerfile and apps/web/Dockerfile. Everything is left out, then only what
+# the images need is let back in: a file added later (a .env holding the Riot API key, a
+# backup...) can never end up in an image by mistake.
+*
+
+# The workspace: its packages and the exact versions of their dependencies.
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!tsconfig.base.json
+
+!packages/*/package.json
+!packages/*/src/
+
+!apps/api/package.json
+!apps/api/src/
+!apps/api/drizzle/
+
+!apps/web/package.json
+!apps/web/index.html
+!apps/web/src/
+!apps/web/scripts/
+!apps/web/vite.config.ts
+!apps/web/tsconfig*.json
+!apps/web/Caddyfile
+
+# The tests and their helpers run in CI, not in the images.
+**/*.test.ts
+**/*.test.tsx
+**/test-*.ts
+**/test-*.tsx

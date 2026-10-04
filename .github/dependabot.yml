@@ -11,9 +11,10 @@ updates:
     commit-message:
       prefix: ci
 
-  # Keeps the digest-pinned images of compose.yaml up to date.
+  # Keeps the digest-pinned images of compose.yaml (development) and deploy/compose.yaml
+  # (production) up to date.
   - package-ecosystem: docker-compose
-    directory: /
+    directories: [/, /deploy]
     schedule:
       interval: weekly
     cooldown:
@@ -22,6 +23,21 @@ updates:
       # A new major version of PostgreSQL cannot read the data of the previous one: the
       # upgrade is done by hand (dump and restore), not by merging a pull request.
       - dependency-name: postgres
+        update-types: ['version-update:semver-major']
+    commit-message:
+      prefix: build
+
+  # Keeps the digest-pinned base images of the Dockerfiles up to date (Node.js, Caddy).
+  - package-ecosystem: docker
+    directories: [/apps/api, /apps/web]
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 3
+    ignore:
+      # Node.js 24 is the version of .nvmrc and of the CI: moving to the next major
+      # version is a decision of its own, for all of them at once.
+      - dependency-name: node
         update-types: ['version-update:semver-major']
     commit-message:
       prefix: build

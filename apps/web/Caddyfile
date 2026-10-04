@@ -1,0 +1,35 @@
+# Caddy inside the image of the web app (apps/web/Dockerfile): serves the files Vite built.
+# HTTPS, the password and the security headers are the job of the Caddy of the server, in
+# front of it.
+{
+	# Nothing to change while it runs, no certificate to get.
+	admin off
+	persist_config off
+	auto_https off
+}
+
+:8080 {
+	root * /srv
+
+	# Vite names the files of /assets/ after their content (index-B1x2y3.js): one never
+	# changes, browsers may keep it a year. The rest (index.html) is checked at each visit,
+	# so that a new version of the site is seen at once.
+	@assets path /assets/*
+	header @assets {
+		Cache-Control "public, max-age=31536000, immutable"
+		# Not on a 404: the file may come with the next version.
+		match status 200
+	}
+	@other not path /assets/*
+	header @other Cache-Control "no-cache"
+
+	# Every page of the app is index.html, React Router shows the one of the URL. A missing
+	# file of /assets/ stays a 404 rather than HTML served as a script.
+	@page {
+		not path /assets/*
+		not file
+	}
+	rewrite @page /index.html
+
+	file_server
+}
