@@ -45,6 +45,49 @@ sudo docker compose logs api --since 1h            # one JSON line per request
 sudo journalctl -u caddy --since today             # Caddy: certificates, errors
 ```
 
+## Backups
+
+Every night at about 03:30 UTC (`statslol-backup.timer`, before the automatic reboots of
+04:00), `statslol-backup` dumps the database (`pg_dump`, compressed) into
+`/var/backups/statslol/`, readable by root only, checks that the dump can be read, and
+deletes the dumps older than 14 days. A failed run leaves no partial file and keeps the
+previous dumps.
+
+```bash
+sudo systemctl list-timers statslol-backup.timer   # next and last run
+sudo journalctl -u statslol-backup --since today    # what the last runs said
+sudo statslol-backup                                # one more, now
+```
+
+The dumps are on the server itself: they help after a mistake (a bad migration, deleted
+rows), not if the server is lost. From time to time, copy the last one to your computer and
+check it there; `deploy/check-backup.sh` restores it into a throwaway PostgreSQL container
+and shows what it holds (the development database is not touched):
+
+```bash
+latest=$(sudo sh -c 'ls -1t /var/backups/statslol/statslol-*.dump | head -n 1')
+sudo install -m 0600 -o ubuntu "$latest" /tmp/statslol-latest.dump
+```
+
+```bash
+# computer
+mkdir -p -m 700 ~/statslol-backups
+scp serveur:/tmp/statslol-latest.dump ~/statslol-backups/ && ssh serveur rm /tmp/statslol-latest.dump
+deploy/check-backup.sh ~/statslol-backups/statslol-latest.dump
+```
+
+To restore one on the server, after stopping the API (`sudo docker compose stop api`):
+`pg_restore --clean --if-exists --dbname=statslol` inside the postgres container, reading the
+dump from its standard input, as `check-backup.sh` does.
+
+## Monitoring
+
+`/api/health` is the only address that needs no password: it only answers
+`{"status":"ok"}`. An uptime monitor checks it from the Internet every 5 minutes and sends
+an email when statslol stops answering. If `/etc/statslol/backup-ping-url` holds a URL of
+Healthchecks.io (readable by root only), each backup that worked calls it, and
+Healthchecks.io sends an email when a night goes by without one.
+
 ## A new version
 
 When a pull request is merged, the **Images** workflow of `main` publishes the images
@@ -68,7 +111,7 @@ back to a version that works with the current tables.
 
 ## First installation
 
-Done on 2026-10-04.
+Done on 2026-10-04 (the backups, section 4, on 2026-10-04 too).
 
 ### 1. Access to the images
 
@@ -118,7 +161,16 @@ sudo docker compose up --detach --wait
 curl -s http://127.0.0.1:3100/api/health  # {"status":"ok"}
 ```
 
-### 4. Caddy
+### 4. Backups
+
+```bash
+sudo install -m 0755 /tmp/statslol/usr/local/sbin/statslol-backup /usr/local/sbin/
+sudo install -m 0644 /tmp/statslol/etc/systemd/system/statslol-backup.* /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now statslol-backup.timer
+sudo systemctl start statslol-backup.service       # a first backup, now
+```
+
+### 5. Caddy
 
 The site imports the list of friends: it must exist first. `statslol-friends` checks each
 change with `caddy validate` and reloads Caddy, which interrupts no website.

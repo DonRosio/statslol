@@ -1,0 +1,11 @@
+[Unit]
+Description=Back up the database of statslol (/var/backups/statslol)
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/statslol-backup
+# The websites first.
+Nice=10
+IOSchedulingClass=idle

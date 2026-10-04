@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Backs up the database of statslol: a dump of PostgreSQL (pg_dump, custom format: compressed,
+# restorable table by table) in /var/backups/statslol, readable by root only, kept 14 days.
+# Run every night by statslol-backup.timer; by hand: sudo statslol-backup
+# deploy/check-backup.sh (in the repository) tries a dump on another computer.
+set -euo pipefail
+
+# Overridable for tests only.
+readonly PROJECT_DIR=${STATSLOL_DIR:-/srv/statslol}
+readonly BACKUP_DIR=${STATSLOL_BACKUP_DIR:-/var/backups/statslol}
+readonly KEEP_DAYS=14
+# Optional: a URL of Healthchecks.io, called after each backup that worked. Healthchecks.io
+# sends an email when a call is missing: a backup that stopped working does not go unseen.
+readonly PING_URL_FILE=/etc/statslol/backup-ping-url
+
+compose() {
+  docker compose --project-directory "$PROJECT_DIR" "$@"
+}
+
+umask 077
+install -d -m 0700 "$BACKUP_DIR"
+file=$BACKUP_DIR/statslol-$(date -u +%Y-%m-%dT%H%M%SZ).dump
+# Written under another name first, removed if anything fails: a dump cut short never looks
+# like a good one.
+trap 'rm -f "$file.part"' EXIT
+
+compose exec -T --user postgres postgres \
+  pg_dump --format=custom --dbname=statslol >"$file.part"
+# A dump that pg_restore cannot read is no backup.
+compose exec -T --user postgres postgres pg_restore --list <"$file.part" >/dev/null
+mv "$file.part" "$file"
+echo "Backed up to $file ($(du -h "$file" | cut -f 1))"
+
+find "$BACKUP_DIR" -name 'statslol-*.dump' -mtime "+$KEEP_DAYS" -print -delete
+
+if [[ -r $PING_URL_FILE ]]; then
+  curl --fail --silent --show-error --max-time 10 --retry 3 "$(<"$PING_URL_FILE")" >/dev/null
+fi

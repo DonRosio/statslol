@@ -2,8 +2,10 @@
 # listen on the server itself: the API on port 3100, the web app on port 3101.
 statslol.donrgames.fr {
 	# Only the friends listed in statslol-friends may open it: the browser asks a name and
-	# a password. Managed with `sudo statslol-friends`, never by hand.
-	basic_auth {
+	# a password. Managed with `sudo statslol-friends`, never by hand. Except /api/health,
+	# which only answers "ok": an uptime monitor checks it from the Internet.
+	@private not path /api/health
+	basic_auth @private {
 		import /etc/caddy/statslol-friends
 	}
 
