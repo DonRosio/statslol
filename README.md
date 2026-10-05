@@ -58,7 +58,8 @@ pnpm then reports that Vite "failed with signal SIGINT": that is expected).
     - `GET /api/v1/players/:region/:name/:tag/matches?start=0`: a page of 10 matches of the
       player, the most recent first, and the `start` of the next page. Each match is fetched
       from Riot once, then stored in PostgreSQL. Each one has the player's result, KDA,
-      spells, runes and items, and its 10 players (18 in Arena: Riot ID, champion, side).
+      level, vision score, spells, runes and items, and its 10 players (18 in Arena: Riot ID,
+      champion, side).
     - `GET /api/v1/matches/:region/:matchId`: the details of a match, e.g.
       `/api/v1/matches/euw/EUW1_8001854388`: its teams (the 2 sides, or in Arena the teams of
       players, the best place first) with the result, the kills, the gold and the objectives
@@ -99,13 +100,23 @@ pnpm then reports that Vite "failed with signal SIGINT": that is expected).
     - `/players/:region/:name/:tag`: profile page of a player, e.g.
       `/players/kr/Hide%20on%20bush/KR1`: icon, level, solo and flex ranks, then the match
       history, 10 matches at a time ("Show more"). Above it, a summary of the last 20 games
-      (the second page is loaded by itself): the 3 most played champions with their record,
-      win rate and average score, the win rate as a ring, and the average KDA. A match shows its result and queue, the
-      champion with its spells and runes, the score, the 7 item slots, and the players, each
+      (the second page is loaded by itself): the win rate as a ring, the average KDA, and
+      the 3 most played champions (win rate, record and average KDA), and the average rank of
+      the player (a placeholder, 5/10, until the factors that decide it are chosen). A match
+      shows its result and queue, the champion with its level and position, the score
+      (creep score, or vision score for a support), a frame with the spells, the runes and the
+      7 item slots, and the players, each
       linked to their profile (in Arena, the player's team). Images (profile icon, champions,
       spells, runes, items) come from Data Dragon; without them, the page shows names and
       empty squares instead. A URL the API would refuse (unknown region, invalid name or
       tag) shows the "not found" page.
+    - The arrow at the right of a match opens its details, with a menu bar (General, and
+      Analysis, which is not designed yet). "General" has a table for each team (the 2 sides,
+      or in Arena the teams by place) with the result, kills, gold and objectives, and for each
+      player the score, the damage (with a bar relative to the best of the match), the creep
+      score per minute (the vision score for a support) and the items. Asked to the API when
+      opened for the first time, then kept; nothing scrolls sideways: a narrow card puts the
+      numbers on two lines.
     - "Update" button: the API forgets what it knows about the player, and the page loads
       fresh data. Once every 2 minutes per player: the button counts down the delay.
     - Grey blocks stand in for the ranks and the matches while they load. When the API

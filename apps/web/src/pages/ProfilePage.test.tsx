@@ -85,28 +85,37 @@ describe('profile page', () => {
     for (const text of [
       'Victory',
       'Ranked Solo/Duo',
-      'Sylas',
-      'Mid',
-      '7 / 2 / 9',
+      'Lvl. 16',
       '8.00 KDA',
-      '192 CS (6.3/min)',
+      '192 CS (6.3)',
     ]) {
       expect(within(ranked).getByText(text)).toBeDefined();
     }
     expect(within(ranked).getByText(/· 30:34$/)).toBeDefined();
+    // The champion and the position are drawn, not written: the images say what they are.
+    expect(within(ranked).getByRole('img', { name: 'Sylas' })).toBeDefined();
+    expect(within(ranked).getByRole('img', { name: 'Mid' })).toBeDefined();
+    // No written name: only the images (and the tooltip of the drawing) have one.
+    expect(within(ranked).queryByText('Sylas')).toBeNull();
+    expect(
+      within(ranked).queryByText('Mid', { selector: 'p, span' }),
+    ).toBeNull();
     // Screen readers say what the numbers are.
-    expect(within(ranked).getByText('7 / 2 / 9').textContent).toBe(
-      'Kills, deaths, assists: 7 / 2 / 9',
-    );
+    expect(
+      within(ranked).getByText('Kills, deaths, assists:').parentElement
+        ?.textContent,
+    ).toBe('Kills, deaths, assists: 7 / 2 / 9');
     expect(
       within(ranked)
         .getByText(/ago$|^yesterday$/)
         .getAttribute('datetime'),
     ).toBe('2026-10-03T16:41:12.000Z');
     // In Arena: the place instead of "Victory", the name players know, and no position.
-    for (const text of ['3rd place', 'Arena', 'Wukong', 'Perfect KDA']) {
+    for (const text of ['3rd place', 'Arena', 'Perfect KDA']) {
       expect(within(arena).getByText(text)).toBeDefined();
     }
+    expect(within(arena).getByRole('img', { name: 'Wukong' })).toBeDefined();
+    expect(within(arena).queryByRole('img', { name: 'Mid' })).toBeNull();
   });
 
   it('shows the profile icon and the champions from Data Dragon', async () => {
@@ -143,7 +152,9 @@ describe('profile page', () => {
     const matches = await findMatches();
     await screen.findByText('Korea · Level 812');
     expect(requests).toContain('/api/v1/static-data');
-    expect(within(at(matches, 1)).getByText('MonkeyKing')).toBeDefined();
+    expect(
+      within(at(matches, 1)).getByRole('img', { name: 'MonkeyKing' }),
+    ).toBeDefined();
     expect(imageSources()).toEqual([]);
   });
 
@@ -162,7 +173,7 @@ describe('profile page', () => {
     renderPage(PLAYER_PAGE_PATH);
 
     const match = at(await findMatches(), 0);
-    expect(within(match).getByText('Newcomer')).toBeDefined();
+    expect(within(match).getByRole('img', { name: 'Newcomer' })).toBeDefined();
     expect(match.querySelector('img')).toBeNull();
   });
 

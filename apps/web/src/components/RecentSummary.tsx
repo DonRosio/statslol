@@ -8,6 +8,11 @@ import styles from './RecentSummary.module.css';
 
 const CHAMPION_IMAGE_SIZE = 32;
 
+// The rank of the player in his games (the MVP, the order of the players of a game) is not
+// defined yet: which numbers decide it has not been chosen. Until then, an average in the
+// middle of the road, everywhere.
+const AVERAGE_RANK = '5/10';
+
 // The ring is drawn in a 100 × 100 square: a circle of radius 42 and a line of 10.
 const RING_RADIUS = 42;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
@@ -19,8 +24,8 @@ interface RecentSummaryProps {
 }
 
 /**
- * What the last games come to: the most played champions, the win rate as a ring, and the
- * average score. Nothing for no game.
+ * What the last games come to: the win rate as a ring, the average score, the most played
+ * champions, and on the right the average rank of the player. Nothing for no game.
  */
 export function RecentSummary({ stats, staticData }: RecentSummaryProps) {
   if (stats.games === 0) return null;
@@ -28,9 +33,10 @@ export function RecentSummary({ stats, staticData }: RecentSummaryProps) {
     <div className={styles.summary}>
       <p className={styles.caption}>Last {stats.games} games</p>
       <div className={styles.blocks}>
-        <TopChampions champions={stats.champions} staticData={staticData} />
         <WinRateRing stats={stats} />
         <AverageScore stats={stats} />
+        <TopChampions champions={stats.champions} staticData={staticData} />
+        <AverageRank />
       </div>
     </div>
   );
@@ -132,6 +138,8 @@ function ChampionRow({
     staticData === undefined
       ? undefined
       : findChampion(staticData, stats.championId);
+  // Data Dragon's name ("Wukong"), or else Riot's internal one ("MonkeyKing").
+  const name = champion?.name ?? stats.championName;
   return (
     <div className={styles.champion}>
       <GameImage
@@ -142,38 +150,38 @@ function ChampionRow({
         }
         size={CHAMPION_IMAGE_SIZE}
         className={styles.championImage}
-        fallback={<span className={styles.championImage} />}
-      />
-      <div className={styles.championName}>
-        {/* Data Dragon's name ("Wukong"), or else Riot's internal one ("MonkeyKing"). */}
-        <p className={styles.strong}>{champion?.name ?? stats.championName}</p>
-        <p className={styles.small}>
-          {stats.wins}W - {stats.losses}L
-        </p>
-      </div>
-      <p
-        className={
-          (stats.winRate ?? 0) >= 50 ? styles.rateWon : styles.rateLost
+        // The name is not written: the image says who it is.
+        alt={name}
+        fallback={
+          <span className={styles.championImage} role="img" aria-label={name} />
         }
-      >
-        {stats.winRate}%<span className="visually-hidden"> win rate</span>
-      </p>
-      <div className={styles.championScore}>
-        <p className={styles.strong}>
-          {formatKdaRatio(stats.kills, stats.deaths, stats.assists)}{' '}
-          <span className={styles.small}>KDA</span>
+      />
+      <div>
+        <p
+          className={
+            (stats.winRate ?? 0) >= 50 ? styles.rateWon : styles.rateLost
+          }
+        >
+          {stats.winRate}%
+          <span className={styles.record}>
+            {' '}
+            - {stats.wins}W/{stats.losses}L
+          </span>
         </p>
         <p className={styles.small}>
-          <span className="visually-hidden">
-            Average kills, deaths, assists:{' '}
-          </span>
-          {formatAverageScore(
-            stats.averageKills,
-            stats.averageDeaths,
-            stats.averageAssists,
-          )}
+          {formatKdaRatio(stats.kills, stats.deaths, stats.assists)} KDA
         </p>
       </div>
+    </div>
+  );
+}
+
+/** The average rank of the player in his games: a placeholder for now (see AVERAGE_RANK). */
+function AverageRank() {
+  return (
+    <div className={styles.rank}>
+      <p className={styles.rankValue}>{AVERAGE_RANK}</p>
+      <p className={styles.small}>Average rank</p>
     </div>
   );
 }

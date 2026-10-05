@@ -83,6 +83,9 @@
   --color-panel: color-mix(in srgb, var(--color-surface) 84%, transparent);
   /* Something set into the panel (a rank, a match that was a remake): darker than it. */
   --color-inset: color-mix(in srgb, var(--color-surface) 65%, var(--color-bg));
+  /* The dark gray frame around the spells, the runes and the items of a match. */
+  --color-frame: color-mix(in srgb, var(--color-surface) 50%, var(--color-bg));
+  --color-frame-line: color-mix(in srgb, var(--color-text) 16%, transparent);
 
   /* A box of the panel (the ranks, the history): the inset color, a little see-through. */
   --color-box: color-mix(in srgb, var(--color-inset) 72%, transparent);

@@ -247,3 +247,82 @@ describe('players of the match', () => {
     expect(screen.queryAllByRole('link', { name: /Ally/ })).toHaveLength(0);
   });
 });
+
+describe('numbers of a game', () => {
+  it('shows the level, and the position as an icon', async () => {
+    const { card } = await showMatch(
+      matchSummary('KR_1', { level: 17, position: 'JUNGLE' }),
+    );
+
+    expect(within(card).getByText('Lvl. 17')).toBeDefined();
+    expect(within(card).getByRole('img', { name: 'Jungle' })).toBeDefined();
+  });
+
+  it('shows the deaths apart, and the score for the screen readers', async () => {
+    const { card } = await showMatch(
+      matchSummary('KR_1', { kills: 1, deaths: 4, assists: 3 }),
+    );
+
+    const deaths = within(card).getByText('4');
+    expect(deaths.className).toContain('deaths');
+    expect(deaths.parentElement?.textContent).toBe(
+      'Kills, deaths, assists: 1 / 4 / 3',
+    );
+  });
+
+  it('shows the creep score and its average per minute', async () => {
+    const { card } = await showMatch(
+      matchSummary('KR_1', {
+        creepScore: 103,
+        durationSeconds: 935,
+        visionScore: 40,
+      }),
+    );
+
+    expect(within(card).getByText('103 CS (6.6)')).toBeDefined();
+    expect(within(card).queryByText(/vision/)).toBeNull();
+  });
+
+  it('shows the vision score instead, with its average per minute, for a support', async () => {
+    const { card } = await showMatch(
+      matchSummary('KR_1', {
+        position: 'UTILITY',
+        creepScore: 31,
+        visionScore: 60,
+        durationSeconds: 1800,
+      }),
+    );
+
+    expect(within(card).getByText('60 vision (2.0)')).toBeDefined();
+    expect(within(card).queryByText(/CS \(/)).toBeNull();
+    expect(within(card).getByRole('img', { name: 'Support' })).toBeDefined();
+  });
+
+  it('puts the spells, the runes and the items in the same frame', async () => {
+    const { card } = await showMatch(matchSummary('KR_1', LOADOUT));
+
+    const frame = within(card).getByRole('group', {
+      name: 'Items',
+    }).parentElement;
+    expect(
+      [...(frame?.children ?? [])].map((part) =>
+        part.getAttribute('aria-label'),
+      ),
+    ).toEqual(['Summoner spells', 'Runes', 'Items']);
+  });
+
+  it('has no frame part for the runes where there are none', async () => {
+    const { card } = await showMatch(
+      matchSummary('KR_1', { ...LOADOUT, runes: null }),
+    );
+
+    const frame = within(card).getByRole('group', {
+      name: 'Items',
+    }).parentElement;
+    expect(
+      [...(frame?.children ?? [])].map((part) =>
+        part.getAttribute('aria-label'),
+      ),
+    ).toEqual(['Summoner spells', 'Items']);
+  });
+});

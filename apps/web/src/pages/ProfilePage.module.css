@@ -1,12 +1,14 @@
 /* Ranks on the left, matches on the right; one column on a narrow screen. */
 .columns {
   display: grid;
+  /* Columns that can be narrower than what they hold (a table scrolls in its own box). */
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.5rem;
 }
 
 @media (width >= 52rem) {
   .columns {
-    grid-template-columns: 17rem 1fr;
+    grid-template-columns: 17rem minmax(0, 1fr);
     align-items: start;
   }
 }

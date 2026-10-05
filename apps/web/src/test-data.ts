@@ -1,4 +1,5 @@
 import type {
+  MatchDetails,
   MatchParticipant,
   MatchSummary,
   PlayerProfile,
@@ -73,6 +74,8 @@ export function matchSummary(
     assists: 9,
     creepScore: 192,
     position: 'MIDDLE',
+    level: 16,
+    visionScore: 24,
     // Nothing but the result: tests that look at the spells, runes, items or players of a
     // match give them (LOADOUT, classicPlayers...).
     spellIds: [],
@@ -156,4 +159,94 @@ export function arenaPlayers(): MatchParticipant[] {
       isPlayer: index === 6,
     });
   });
+}
+
+/**
+ * The details of a match, as the API gives them: 2 teams of 5 players (those of
+ * classicPlayers(), Hide on bush#KR1 being the player 1). The blue side wins; damage grows
+ * with the number of the player, so that the most damage is dealt by the player 10.
+ */
+export function classicDetails(id: string): MatchDetails {
+  const players = classicPlayers();
+  const team = (teamId: number, result: 'win' | 'loss') => ({
+    id: teamId,
+    result,
+    placement: null,
+    kills: 30,
+    gold: 52_300,
+    objectives:
+      teamId === 100
+        ? { towers: 9, inhibitors: 1, dragons: 3, barons: 1, heralds: 0 }
+        : { towers: 2, inhibitors: 0, dragons: 1, barons: 0, heralds: 1 },
+    players: players
+      .filter((one) => one.teamId === teamId)
+      .map((one) => ({
+        participantId: one.participantId,
+        riotId: one.riotId,
+        championId: one.championId,
+        championName: one.championName,
+        level: 14 + one.participantId,
+        position: 'MIDDLE',
+        spellIds: [4, 14],
+        runes: { keystoneId: 8008, secondaryStyleId: 8400 },
+        itemIds: [3078, 0, 0, 0, 0, 0, 3340],
+        kills: 7,
+        deaths: 2,
+        assists: 9,
+        creepScore: 192,
+        damageToChampions: 10_000 * one.participantId,
+        gold: 12_500,
+        visionScore: 20 + one.participantId,
+      })),
+  });
+  return {
+    id,
+    queueId: 420,
+    startedAt: '2026-10-03T16:41:12.000Z',
+    durationSeconds: 1834,
+    teams: [team(100, 'win'), team(200, 'loss')],
+  };
+}
+
+/** The details of the Arena match of ARENA_MATCH: 6 teams of 3, the player's team third. */
+export function arenaDetails(id: string): MatchDetails {
+  const players = arenaPlayers();
+  const places = [3, 1, 2, 4, 5, 6];
+  const teams = places
+    .map((placement, index) => ({
+      id: index + 1,
+      result: placement <= 3 ? ('win' as const) : ('loss' as const),
+      placement,
+      kills: 20,
+      gold: 40_000,
+      objectives: null,
+      players: players
+        .filter((one) => one.subteamId === index + 1)
+        .map((one) => ({
+          participantId: one.participantId,
+          riotId: one.riotId,
+          championId: one.championId,
+          championName: one.championName,
+          level: 17,
+          position: null,
+          spellIds: [2202],
+          runes: null,
+          itemIds: [3078, 0, 0, 0, 0, 0, 3340],
+          kills: 5,
+          deaths: 3,
+          assists: 4,
+          creepScore: 0,
+          damageToChampions: 8000,
+          gold: 13_000,
+          visionScore: 0,
+        })),
+    }))
+    .sort((a, b) => a.placement - b.placement);
+  return {
+    id,
+    queueId: 1750,
+    startedAt: '2026-10-03T16:41:12.000Z',
+    durationSeconds: 1105,
+    teams,
+  };
 }

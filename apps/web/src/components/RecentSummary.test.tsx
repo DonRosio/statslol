@@ -143,14 +143,26 @@ describe('summary of the last games', () => {
     });
     const sylas = at([...champions.children] as HTMLElement[], 0);
     const wukong = at([...champions.children] as HTMLElement[], 1);
-    // Sylas: 3 games, 2 wins, 67 %; (10 + 4 + 1) / 3 = 5 kills...
-    expect(within(sylas).getByText('Sylas')).toBeDefined();
-    expect(within(sylas).getByText('2W - 1L')).toBeDefined();
-    expect(within(sylas).getByText('67%').textContent).toBe('67% win rate');
-    expect(within(sylas).getByText('5.0 / 4.0 / 5.0')).toBeDefined();
-    expect(within(wukong).getByText('Wukong')).toBeDefined();
-    expect(within(wukong).getByText('0W - 1L')).toBeDefined();
+    // The name is not written: the image says it. Under the win rate, only the KDA.
+    expect(within(sylas).getByRole('img', { name: 'Sylas' })).toBeDefined();
+    expect(within(sylas).queryByText('Sylas')).toBeNull();
+    // Sylas: 3 games, 2 wins; (15 kills + 15 assists) / 12 deaths.
+    expect(sylas.textContent).toBe('67% - 2W/1L2.50 KDA');
+    expect(within(wukong).getByRole('img', { name: 'Wukong' })).toBeDefined();
+    expect(wukong.textContent).toBe('0% - 0W/1LPerfect KDA');
     expect(champions.children).toHaveLength(2);
+  });
+
+  it('shows the average rank of the player, a placeholder until the factors are chosen', async () => {
+    mockPlayerApi({
+      matches: matchPages({ 0: { matches: GAMES, nextStart: null } }),
+    });
+
+    renderPage(PLAYER_PAGE_PATH);
+
+    await findSummary();
+    expect(screen.getByText('5/10')).toBeDefined();
+    expect(screen.getByText('Average rank')).toBeDefined();
   });
 
   it('shows the images of the champions from Data Dragon', async () => {

@@ -105,6 +105,8 @@ function summarize(match: RiotMatch, puuid: string): MatchSummary | null {
     assists: player.assists,
     creepScore: player.totalMinionsKilled + player.neutralMinionsKilled,
     position: positionOf(player),
+    level: player.champLevel ?? 0,
+    visionScore: player.visionScore ?? 0,
     spellIds: spellIdsOf(player),
     runes: runesOf(player),
     itemIds: itemIdsOf(player),

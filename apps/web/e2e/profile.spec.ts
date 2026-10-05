@@ -1,5 +1,6 @@
 import {
   ARENA_MATCH,
+  classicDetails,
   classicPlayers,
   LOADOUT,
   matchSummary,
@@ -41,7 +42,10 @@ test('finds a player from the home page, then shows their profile', async ({
   await expect(matches.nth(0)).toContainText('Victory');
   await expect(matches.nth(0)).toContainText('18 hours ago · 30:34');
   await expect(matches.nth(1)).toContainText('3rd place');
-  await expect(matches.nth(1)).toContainText('Wukong');
+  // The champion is not written on the card: its image says who it is.
+  await expect(
+    matches.nth(1).getByRole('img', { name: 'Wukong' }),
+  ).toBeVisible();
 
   // The profile icon and the 2 champions, all displayed by the browser.
   const images = page.locator('img');
@@ -97,8 +101,13 @@ test('shows names and empty squares when Data Dragon is unreachable', async ({
   // is shown twice (summary and matches).
   await expect.poll(() => failedImages).toBe(3);
   await expect(page.locator('img')).toHaveCount(0);
-  await expect(page.getByRole('listitem').nth(0)).toContainText('Sylas');
-  await expect(page.getByRole('listitem').nth(1)).toContainText('Wukong');
+  // The empty squares keep the names of the champions.
+  await expect(
+    page.getByRole('listitem').nth(0).getByRole('img', { name: 'Sylas' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('listitem').nth(1).getByRole('img', { name: 'Wukong' }),
+  ).toBeVisible();
 });
 
 test('shows the "not found" page for a URL the API would refuse', async ({
@@ -176,4 +185,39 @@ test('shows the spells, runes, items and players of a match, and opens a player 
   await expect(
     page.getByRole('heading', { level: 1, name: 'Ally 1#KR1' }),
   ).toBeVisible();
+});
+
+test('opens the details of a match with the arrow, and closes them', async ({
+  page,
+  api,
+}) => {
+  knowPlayer(api, {
+    matches: [
+      matchSummary('KR_3', { ...LOADOUT, participants: classicPlayers() }),
+    ],
+    nextStart: null,
+  });
+  api.answer('/api/v1/matches/kr/KR_3', classicDetails('KR_3'));
+
+  await page.goto(PLAYER_PAGE_PATH);
+  const match = page.getByRole('listitem');
+  await match
+    .getByRole('button', { name: 'Show the details of the match' })
+    .click();
+
+  const blue = match.getByRole('region', { name: 'Victory, Blue team' });
+  await expect(blue).toBeVisible();
+  await expect(blue.getByRole('row')).toHaveCount(6);
+  await expect(
+    match.getByRole('region', { name: 'Defeat, Red team' }),
+  ).toBeVisible();
+  // The images of the 2 tables (champions and items) are displayed by the browser.
+  for (const image of await match.getByRole('region').locator('img').all()) {
+    await expect(image).toHaveJSProperty('naturalWidth', 1);
+  }
+
+  await match
+    .getByRole('button', { name: 'Hide the details of the match' })
+    .click();
+  await expect(blue).toHaveCount(0);
 });

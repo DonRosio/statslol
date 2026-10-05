@@ -56,6 +56,10 @@ export const matchSummarySchema = z.object({
   creepScore: z.number().int().nonnegative(),
   // TOP, JUNGLE, MIDDLE, BOTTOM or UTILITY; null in modes without positions (ARAM, Arena...).
   position: z.string().nullable(),
+  // The level of the champion at the end of the game.
+  level: z.number().int().nonnegative(),
+  // Vision score: wards placed and destroyed, and what they showed. What counts for a support.
+  visionScore: z.number().int().nonnegative(),
   // The 2 summoner spells (Flash, Ignite...) by their `key` in Data Dragon (see staticData).
   // Empty in a mode without spells.
   spellIds: z.array(z.number().int().positive()).max(2),

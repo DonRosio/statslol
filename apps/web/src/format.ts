@@ -29,13 +29,21 @@ export function formatKdaRatio(
   return ((kills + assists) / deaths).toFixed(2);
 }
 
+/** A total per minute of game, with 1 decimal: "7.2". */
+export function formatPerMinute(
+  total: number,
+  durationSeconds: number,
+): string {
+  if (durationSeconds === 0) return '0.0';
+  return (total / (durationSeconds / 60)).toFixed(1);
+}
+
 /** Minions and monsters killed per minute, with 1 decimal: "7.2". */
 export function formatCsPerMinute(
   creepScore: number,
   durationSeconds: number,
 ): string {
-  if (durationSeconds === 0) return '0.0';
-  return (creepScore / (durationSeconds / 60)).toFixed(1);
+  return formatPerMinute(creepScore, durationSeconds);
 }
 
 /** "31:05", or "1:02:09" past an hour. */
@@ -141,4 +149,16 @@ export function formatAverageScore(
   assists: number,
 ): string {
   return [kills, deaths, assists].map(formatAverage).join(' / ');
+}
+
+const integer = new Intl.NumberFormat('en');
+
+/** A whole number with thousands separators: "23,124". */
+export function formatNumber(value: number): string {
+  return integer.format(value);
+}
+
+/** Gold in thousands, with 1 decimal: "19.0k". */
+export function formatGold(gold: number): string {
+  return `${(gold / 1000).toFixed(1)}k`;
 }

@@ -4,6 +4,7 @@ import type {
   PlayerParams,
   StaticData,
 } from '@statslol/shared';
+import { useId, useState } from 'react';
 import { Link } from 'react-router';
 
 import {
@@ -17,23 +18,24 @@ import {
   spellImageUrl,
 } from '../data-dragon.ts';
 import {
-  formatCsPerMinute,
   formatDateTime,
   formatDuration,
   formatKdaRatio,
+  formatPerMinute,
   formatResult,
   formatTimeAgo,
-  positionName,
   teamName,
 } from '../format.ts';
 import { playerPath } from '../player-path.ts';
 import { queueName } from '../queues.ts';
 import { GameImage } from './GameImage.tsx';
+import { MatchDetails } from './MatchDetails.tsx';
+import { PositionIcon } from './PositionIcon.tsx';
 import styles from './MatchCard.module.css';
 
-const CHAMPION_IMAGE_SIZE = 42;
-// Spells, runes and items: 2 rows of them are as high as the champion's image.
-const SLOT_SIZE = 20;
+const CHAMPION_IMAGE_SIZE = 46;
+// Spells, runes and items: 2 rows of them are about as high as the champion's image.
+const SLOT_SIZE = 22;
 const TEAMMATE_IMAGE_SIZE = 20;
 
 /**
@@ -57,7 +59,11 @@ export function MatchCard({ match, player, staticData, now }: MatchCardProps) {
     staticData === undefined
       ? undefined
       : findChampion(staticData, match.championId);
-  const position = positionName(match.position);
+  // What a support is judged on is the vision, not the minions.
+  const isSupport = match.position === 'UTILITY';
+  // The details are asked to the API when they are opened for the first time.
+  const [open, setOpen] = useState(false);
+  const detailsId = useId();
 
   return (
     <li className={styles.match} data-result={match.result}>
@@ -76,7 +82,7 @@ export function MatchCard({ match, player, staticData, now }: MatchCardProps) {
         </p>
       </div>
 
-      <div className={styles.loadout}>
+      <div className={styles.champion}>
         <GameImage
           src={
             staticData === undefined || champion === undefined
@@ -84,42 +90,84 @@ export function MatchCard({ match, player, staticData, now }: MatchCardProps) {
               : championImageUrl(staticData.version, champion)
           }
           size={CHAMPION_IMAGE_SIZE}
-          className={styles.champion}
-          fallback={<span className={styles.champion} />}
+          className={styles.championImage}
+          // The name of the champion is not written on the card: the image says it.
+          alt={champion?.name ?? match.championName}
+          fallback={
+            <span
+              className={styles.championImage}
+              role="img"
+              aria-label={champion?.name ?? match.championName}
+            />
+          }
         />
+        <div className={styles.level}>
+          <span className={styles.muted}>Lvl. {match.level}</span>
+          <PositionIcon position={match.position} />
+        </div>
+      </div>
+
+      <div className={styles.stats}>
+        <p className={styles.score}>
+          <span className="visually-hidden">Kills, deaths, assists: </span>
+          {match.kills}
+          <span className={styles.slash}> / </span>
+          <span className={styles.deaths}>{match.deaths}</span>
+          <span className={styles.slash}> / </span>
+          {match.assists}
+        </p>
+        <p className={styles.muted}>
+          {formatKdaRatio(match.kills, match.deaths, match.assists)} KDA
+        </p>
+        <p className={styles.muted}>
+          {isSupport
+            ? `${String(match.visionScore)} vision (${formatPerMinute(match.visionScore, match.durationSeconds)})`
+            : `${String(match.creepScore)} CS (${formatPerMinute(match.creepScore, match.durationSeconds)})`}
+        </p>
+      </div>
+
+      <div className={styles.cluster}>
         <Spells spellIds={match.spellIds} staticData={staticData} />
         {match.runes !== null && (
           <Runes runes={match.runes} staticData={staticData} />
         )}
+        <Items itemIds={match.itemIds} staticData={staticData} />
       </div>
-
-      <div className={styles.stats}>
-        <p>
-          {/* Data Dragon's name ("Wukong"), or else Riot's internal one ("MonkeyKing"). */}
-          <span className={styles.strong}>
-            {champion?.name ?? match.championName}
-          </span>
-          {position !== null && (
-            <span className={styles.muted}>{position}</span>
-          )}
-        </p>
-        <p>
-          <span className={styles.strong}>
-            <span className="visually-hidden">Kills, deaths, assists: </span>
-            {match.kills} / {match.deaths} / {match.assists}
-          </span>
-          <span className={styles.muted}>
-            {formatKdaRatio(match.kills, match.deaths, match.assists)} KDA
-          </span>
-        </p>
-        <p>
-          {match.creepScore} CS (
-          {formatCsPerMinute(match.creepScore, match.durationSeconds)}/min)
-        </p>
-      </div>
-
-      <Items itemIds={match.itemIds} staticData={staticData} />
       <Players match={match} player={player} staticData={staticData} />
+
+      <button
+        type="button"
+        className={styles.toggle}
+        aria-expanded={open}
+        aria-controls={open ? detailsId : undefined}
+        aria-label={
+          open
+            ? 'Hide the details of the match'
+            : 'Show the details of the match'
+        }
+        onClick={() => {
+          setOpen((wasOpen) => !wasOpen);
+        }}
+      >
+        <svg
+          viewBox="0 0 16 16"
+          width="12"
+          height="12"
+          aria-hidden="true"
+          className={open ? styles.chevronOpen : styles.chevron}
+        >
+          <path d="m3 6 5 5 5-5" />
+        </svg>
+      </button>
+
+      {open && (
+        <MatchDetails
+          id={detailsId}
+          match={match}
+          player={player}
+          staticData={staticData}
+        />
+      )}
     </li>
   );
 }

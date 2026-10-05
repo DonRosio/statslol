@@ -69,6 +69,8 @@ describe('getPage', () => {
           assists: 9,
           creepScore: 192,
           position: 'MIDDLE',
+          level: 16,
+          visionScore: 20,
           spellIds: [4, 14],
           runes: { keystoneId: 8008, secondaryStyleId: 8400 },
           itemIds: [3078, 3157, 0, 0, 0, 0, 3340],
@@ -260,6 +262,8 @@ describe('getPage', () => {
       'perks',
       'riotIdGameName',
       'riotIdTagline',
+      'champLevel',
+      'visionScore',
     ];
     old.info.participants = old.info.participants.map(
       (participant) =>
@@ -277,6 +281,8 @@ describe('getPage', () => {
       spellIds: [],
       runes: null,
       itemIds: [0, 0, 0, 0, 0, 0, 0],
+      level: 0,
+      visionScore: 0,
     });
     expect(page?.matches[0]?.participants[0]?.riotId).toBeNull();
   });
