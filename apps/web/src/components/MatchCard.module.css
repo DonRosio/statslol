@@ -44,7 +44,7 @@
 }
 
 .info {
-  flex: 0 0 7.25rem;
+  flex: 0 0 7rem;
 }
 
 .result {
@@ -64,18 +64,9 @@
 /* The champion, and on its right the level and the position. */
 .champion {
   display: flex;
+  flex: 0 0 5.75rem;
   align-items: center;
   gap: 0.375rem;
-}
-
-/* Also the empty square shown when the image cannot be loaded. */
-.championImage {
-  flex: none;
-  display: block;
-  width: 46px;
-  height: 46px;
-  border-radius: var(--radius);
-  background: var(--color-skeleton);
 }
 
 .level {
@@ -88,7 +79,7 @@
 
 /* The score: kills, deaths and assists, the deaths in red. */
 .stats {
-  flex: 0 0 6rem;
+  flex: 0 0 5.75rem;
 }
 
 .score {
@@ -110,6 +101,7 @@
  */
 .cluster {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   padding: 3px 0;
   border-radius: var(--radius);
@@ -117,7 +109,7 @@
 }
 
 .cluster > * {
-  padding: 0 5px;
+  padding: 0 4px;
 }
 
 .cluster > * + * {
@@ -127,6 +119,28 @@
 .pair {
   display: grid;
   gap: 2px;
+}
+
+/* The runes: the main one on top, bigger than the tree of the secondary ones; no background. */
+.runes {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 26px;
+}
+
+.keystone {
+  display: block;
+  width: 26px;
+  height: 26px;
+}
+
+.secondary {
+  display: block;
+  width: 16px;
+  height: 16px;
 }
 
 /* A spell, a rune or an item; also the empty square of a slot with nothing in it. */
@@ -145,9 +159,11 @@
   gap: 2px;
 }
 
-/* A row of champions for each side. */
+/* A row of champions for each side; the width of 5, whatever the number of players. */
 .players {
   display: grid;
+  flex: 0 0 6.75rem;
+  align-content: center;
   gap: 2px;
 }
 
@@ -170,14 +186,6 @@
 
 a.teammate:hover {
   box-shadow: 0 0 0 2px var(--color-accent);
-}
-
-.teammateImage {
-  display: block;
-  width: 20px;
-  height: 20px;
-  border-radius: 2px;
-  background: var(--color-skeleton);
 }
 
 /* The arrow that opens the details: a strip on the right edge of the card, over its full height. */

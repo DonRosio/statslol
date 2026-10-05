@@ -1,9 +1,8 @@
 import type { StaticData } from '@statslol/shared';
 
-import { championImageUrl, findChampion } from '../data-dragon.ts';
 import { formatAverageScore, formatKdaRatio } from '../format.ts';
 import type { ChampionStats, GroupStats } from '../recent-stats.ts';
-import { GameImage } from './GameImage.tsx';
+import { ChampionIcon } from './ChampionIcon.tsx';
 import styles from './RecentSummary.module.css';
 
 const CHAMPION_IMAGE_SIZE = 32;
@@ -134,27 +133,14 @@ function ChampionRow({
   readonly stats: ChampionStats;
   readonly staticData: StaticData | undefined;
 }) {
-  const champion =
-    staticData === undefined
-      ? undefined
-      : findChampion(staticData, stats.championId);
-  // Data Dragon's name ("Wukong"), or else Riot's internal one ("MonkeyKing").
-  const name = champion?.name ?? stats.championName;
   return (
     <div className={styles.champion}>
-      <GameImage
-        src={
-          staticData === undefined || champion === undefined
-            ? null
-            : championImageUrl(staticData.version, champion)
-        }
+      {/* The name is not written: the image says who it is. */}
+      <ChampionIcon
+        championId={stats.championId}
+        championName={stats.championName}
+        staticData={staticData}
         size={CHAMPION_IMAGE_SIZE}
-        className={styles.championImage}
-        // The name is not written: the image says who it is.
-        alt={name}
-        fallback={
-          <span className={styles.championImage} role="img" aria-label={name} />
-        }
       />
       <div>
         <p

@@ -118,9 +118,11 @@ describe('spells, runes and items', () => {
   });
 
   it('shows no image without the static data, but keeps the layout', async () => {
-    const { card } = await showMatch(matchSummary('KR_1', LOADOUT), {
-      staticData: false,
-    });
+    // No position: its icon is the site's own image, shown whatever Data Dragon does.
+    const { card } = await showMatch(
+      matchSummary('KR_1', { ...LOADOUT, position: null }),
+      { staticData: false },
+    );
 
     expect(card.querySelectorAll('img')).toHaveLength(0);
     expect(
@@ -223,10 +225,11 @@ describe('players of the match', () => {
   });
 
   it('shows only the team of the player in Arena, which has 18 players', async () => {
-    const { card } = await showMatch({
-      ...ARENA_MATCH,
-      participants: arenaPlayers(),
-    });
+    // The Arena games are in the Arena tab.
+    const { card } = await showMatch(
+      { ...ARENA_MATCH, participants: arenaPlayers() },
+      { path: `${PLAYER_PAGE_PATH}/arena` },
+    );
 
     const team = within(card).getByRole('group', {
       name: 'Team of the player',
@@ -311,18 +314,66 @@ describe('numbers of a game', () => {
     ).toEqual(['Summoner spells', 'Runes', 'Items']);
   });
 
-  it('has no frame part for the runes where there are none', async () => {
+  it('shows the main rune bigger than the tree of the secondary ones, with no square behind', async () => {
+    const { card } = await showMatch(matchSummary('KR_1', LOADOUT));
+
+    const runes = within(card).getByRole('group', { name: 'Runes' });
+    const [keystone, secondary] = within(runes).getAllByRole('img');
+    expect(keystone?.className).toContain('keystone');
+    expect(secondary?.className).toContain('secondary');
+    // The squares behind the spells and the items are not for the runes.
+    expect(keystone?.className).not.toContain('slot');
+    expect(secondary?.className).not.toContain('slot');
+  });
+
+  it('keeps the place of the runes, empty and hidden, where there are none', async () => {
     const { card } = await showMatch(
       matchSummary('KR_1', { ...LOADOUT, runes: null }),
     );
 
+    // The items stay in line with those of the other games.
     const frame = within(card).getByRole('group', {
       name: 'Items',
     }).parentElement;
     expect(
-      [...(frame?.children ?? [])].map((part) =>
+      [...(frame?.children ?? [])].map((part) => [
         part.getAttribute('aria-label'),
-      ),
-    ).toEqual(['Summoner spells', 'Items']);
+        part.getAttribute('aria-hidden'),
+      ]),
+    ).toEqual([
+      ['Summoner spells', null],
+      [null, 'true'],
+      ['Items', null],
+    ]);
+  });
+});
+
+describe('result of a game', () => {
+  it('is told by the color of the card, and by a word only screen readers get', async () => {
+    const { card } = await showMatch(matchSummary('KR_1', { result: 'loss' }));
+
+    expect(card.getAttribute('data-result')).toBe('loss');
+    const word = within(card).getByText('Defeat');
+    expect(word.className).toContain('visually-hidden');
+  });
+
+  it('is written when the color cannot tell it: a place in Arena, a remake', async () => {
+    const { card: remake } = await showMatch(
+      matchSummary('KR_1', { result: 'remake' }),
+    );
+    const remakeWord = within(remake).getByText('Remake');
+    expect(remakeWord.className).not.toContain('visually-hidden');
+  });
+
+  it('is a place, written, in Arena', async () => {
+    const { card } = await showMatch(
+      { ...ARENA_MATCH, participants: [] },
+      { path: `${PLAYER_PAGE_PATH}/arena` },
+    );
+
+    expect(within(card).getByText('3rd place').className).not.toContain(
+      'visually-hidden',
+    );
+    expect(within(card).queryByText('Victory')).toBeNull();
   });
 });

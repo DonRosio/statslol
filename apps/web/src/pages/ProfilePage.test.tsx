@@ -8,8 +8,11 @@ import { matchSummary, PLAYER_PAGE_PATH } from '../test-data.ts';
 import { recordRequests } from '../test-server.ts';
 import { at, findMatches, renderPage } from '../test-utils.tsx';
 
+/** The images of the game, from Data Dragon (the icons of the positions are the site's own). */
 function imageSources() {
-  return [...document.querySelectorAll('img')].map((image) => image.src);
+  return [...document.querySelectorAll('img')]
+    .map((image) => image.src)
+    .filter((source) => source.startsWith('https://ddragon.'));
 }
 
 const SYLAS =
@@ -79,12 +82,12 @@ describe('profile page', () => {
 
     const matches = await findMatches();
     const ranked = at(matches, 0);
-    const arena = at(matches, 1);
+    const aram = at(matches, 1);
     expect(matches).toHaveLength(2);
     expect(ranked.getAttribute('data-result')).toBe('win');
     for (const text of [
       'Victory',
-      'Ranked Solo/Duo',
+      'Solo/Duo',
       'Lvl. 16',
       '8.00 KDA',
       '192 CS (6.3)',
@@ -107,15 +110,15 @@ describe('profile page', () => {
     ).toBe('Kills, deaths, assists: 7 / 2 / 9');
     expect(
       within(ranked)
-        .getByText(/ago$|^yesterday$/)
+        .getByText(/\d+(d|h| min) ago$/)
         .getAttribute('datetime'),
     ).toBe('2026-10-03T16:41:12.000Z');
-    // In Arena: the place instead of "Victory", the name players know, and no position.
-    for (const text of ['3rd place', 'Arena', 'Perfect KDA']) {
-      expect(within(arena).getByText(text)).toBeDefined();
+    // An ARAM game: the name players know, and no position.
+    for (const text of ['ARAM', 'Perfect KDA']) {
+      expect(within(aram).getByText(text)).toBeDefined();
     }
-    expect(within(arena).getByRole('img', { name: 'Wukong' })).toBeDefined();
-    expect(within(arena).queryByRole('img', { name: 'Mid' })).toBeNull();
+    expect(within(aram).getByRole('img', { name: 'Wukong' })).toBeDefined();
+    expect(within(aram).queryByRole('img', { name: 'Mid' })).toBeNull();
   });
 
   it('shows the profile icon and the champions from Data Dragon', async () => {
@@ -163,7 +166,11 @@ describe('profile page', () => {
       matches: matchPages({
         0: {
           matches: [
-            matchSummary('KR_1', { championId: 999, championName: 'Newcomer' }),
+            matchSummary('KR_1', {
+              championId: 999,
+              championName: 'Newcomer',
+              position: null,
+            }),
           ],
           nextStart: null,
         },
@@ -177,34 +184,49 @@ describe('profile page', () => {
     expect(match.querySelector('img')).toBeNull();
   });
 
-  it('loads the second page by itself, for the summary, then older matches with "Show more"', async () => {
-    mockPlayerApi({
-      matches: matchPages({
-        0: {
-          matches: [matchSummary('KR_5'), matchSummary('KR_4')],
-          nextStart: 2,
+  it('loads pages by itself, for the summary, up to 5 of them: the next ones are loaded with "Show more"', async () => {
+    // A long history: one game in each of 7 pages.
+    const pages = Object.fromEntries(
+      Array.from({ length: 7 }, (_, index) => [
+        index,
+        {
+          matches: [matchSummary(`KR_${String(7 - index)}`)],
+          nextStart: index < 6 ? index + 1 : null,
         },
-        // KR_6 was played meanwhile: KR_4 comes again.
-        2: {
-          matches: [matchSummary('KR_4'), matchSummary('KR_3')],
-          nextStart: 4,
-        },
-        4: { matches: [matchSummary('KR_2')], nextStart: null },
-      }),
-    });
+      ]),
+    );
+    mockPlayerApi({ matches: matchPages(pages) });
     renderPage(PLAYER_PAGE_PATH);
 
-    // Without a click: the page after the first one.
-    await waitFor(() => {
-      expect(screen.getAllByRole('listitem')).toHaveLength(3);
-    });
-    await userEvent
-      .setup()
-      .click(await screen.findByRole('button', { name: 'Show more' }));
+    // Without a click: 5 pages, not more (each new match is a call to Riot).
+    await waitFor(
+      () => {
+        expect(screen.getAllByRole('listitem')).toHaveLength(5);
+      },
+      { timeout: 4000 },
+    );
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole(
+        'button',
+        { name: 'Show more' },
+        { timeout: 4000 },
+      ),
+    );
+    await waitFor(
+      () => {
+        expect(screen.getAllByRole('listitem')).toHaveLength(6);
+      },
+      { timeout: 4000 },
+    );
+    await user.click(screen.getByRole('button', { name: 'Show more' }));
 
-    await waitFor(() => {
-      expect(screen.getAllByRole('listitem')).toHaveLength(4);
-    });
+    await waitFor(
+      () => {
+        expect(screen.getAllByRole('listitem')).toHaveLength(7);
+      },
+      { timeout: 4000 },
+    );
     expect(screen.queryByRole('button', { name: 'Show more' })).toBeNull();
   });
 

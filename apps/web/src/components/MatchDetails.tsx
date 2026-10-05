@@ -1,5 +1,6 @@
 import type {
   MatchPlayer,
+  MatchRanks,
   MatchSummary,
   MatchTeam,
   PlayerParams,
@@ -9,28 +10,31 @@ import { useQuery } from '@tanstack/react-query';
 import { useId, useRef, useState, type KeyboardEvent } from 'react';
 import { Link } from 'react-router';
 
-import { matchDetailsQuery } from '../api/matches.ts';
-import {
-  championImageUrl,
-  findChampion,
-  findItemName,
-  itemImageUrl,
-} from '../data-dragon.ts';
+import { matchDetailsQuery, matchRanksQuery } from '../api/matches.ts';
+import { itemThing, runeThing, spellThing } from '../data-dragon.ts';
+import { GOLD_ICON, OBJECTIVES, rankEmblem } from '../game-icons.ts';
 import {
   formatGold,
-  formatKdaRatio,
+  formatKillParticipation,
   formatNumber,
   formatPerMinute,
+  formatRankName,
   formatResult,
   teamName,
 } from '../format.ts';
 import { playerPath } from '../player-path.ts';
 import { ErrorMessage } from './ErrorMessage.tsx';
-import { GameImage } from './GameImage.tsx';
+import { ChampionIcon } from './ChampionIcon.tsx';
+import { GameSlot } from './GameSlot.tsx';
 import styles from './MatchDetails.module.css';
 
-const CHAMPION_IMAGE_SIZE = 26;
+const CHAMPION_IMAGE_SIZE = 34;
 const ITEM_SIZE = 22;
+const SPELL_SIZE = 16;
+// The main rune is bigger than the tree of the secondary ones.
+const KEYSTONE_SIZE = 22;
+const SECONDARY_TREE_SIZE = 14;
+const RANK_EMBLEM_HEIGHT = 14;
 
 /** The tabs of the opened details. What the second one shows is not decided yet. */
 const TABS = [
@@ -137,6 +141,12 @@ function General({
   readonly staticData: StaticData | undefined;
 }) {
   const details = useQuery(matchDetailsQuery(player.region, match.id));
+  // The ranks of the players are asked once the details are there, and fill in when they come:
+  // the table does not wait for them (each one is a call to Riot), and does without if they fail.
+  const ranks = useQuery({
+    ...matchRanksQuery(player.region, match.id),
+    enabled: details.data !== undefined,
+  });
 
   if (details.data === undefined) {
     return details.error === null ? (
@@ -182,6 +192,7 @@ function General({
           region={player.region}
           participantId={participantId}
           mostDamage={mostDamage}
+          ranks={ranks.data?.ranks}
           staticData={staticData}
         />
       ))}
@@ -195,6 +206,7 @@ function Team({
   region,
   participantId,
   mostDamage,
+  ranks,
   staticData,
 }: {
   readonly team: MatchTeam;
@@ -202,6 +214,8 @@ function Team({
   readonly region: PlayerParams['region'];
   readonly participantId: number | undefined;
   readonly mostDamage: number;
+  /** The rank of each player, by participantId; undefined until they are known. */
+  readonly ranks: MatchRanks['ranks'] | undefined;
   readonly staticData: StaticData | undefined;
 }) {
   const title = formatResult(team);
@@ -218,19 +232,30 @@ function Team({
       <header className={styles.teamHeader}>
         <strong className={styles.teamResult}>{title}</strong>
         {!arena && <span>{teamName(team.id)}</span>}
-        <span className={styles.muted}>
-          {team.kills} kills · {formatGold(team.gold)} gold
+        <span className={styles.stat}>{team.kills} kills</span>
+        <span className={styles.stat}>
+          <img
+            src={GOLD_ICON}
+            alt="Gold"
+            title="Gold"
+            height={14}
+            className={styles.statIcon}
+          />
+          {formatGold(team.gold)}
         </span>
-        {objectives !== null && (
-          <span className={styles.muted}>
-            {objectives.towers} towers · {objectives.dragons} dragons ·{' '}
-            {objectives.barons} barons
-            {objectives.heralds > 0 &&
-              ` · ${String(objectives.heralds)} heralds`}
-            {objectives.inhibitors > 0 &&
-              ` · ${String(objectives.inhibitors)} inhibitors`}
-          </span>
-        )}
+        {objectives !== null &&
+          OBJECTIVES.map(({ key, icon, name }) => (
+            <span key={key} className={styles.stat}>
+              <img
+                src={icon}
+                alt={name}
+                title={name}
+                height={16}
+                className={styles.statIcon}
+              />
+              {objectives[key]}
+            </span>
+          ))}
       </header>
       <div
         role="table"
@@ -240,7 +265,7 @@ function Team({
         {/* The columns are not written above the numbers, but screen readers get them. */}
         <div role="row" className="visually-hidden">
           <span role="columnheader">Player</span>
-          <span role="columnheader">KDA</span>
+          <span role="columnheader">KDA and kill participation</span>
           <span role="columnheader">Damage to champions</span>
           <span role="columnheader">
             Creep score per minute, or vision score
@@ -251,11 +276,13 @@ function Team({
           <PlayerRow
             key={one.participantId}
             one={one}
+            teamKills={team.kills}
             arena={arena}
             durationSeconds={durationSeconds}
             isPlayer={one.participantId === participantId}
             region={region}
             mostDamage={mostDamage}
+            rank={ranks?.[String(one.participantId)]}
             staticData={staticData}
           />
         ))}
@@ -266,28 +293,30 @@ function Team({
 
 function PlayerRow({
   one,
+  teamKills,
   arena,
   durationSeconds,
   isPlayer,
   region,
   mostDamage,
+  rank,
   staticData,
 }: {
   readonly one: MatchPlayer;
+  /** The kills of the player's team: kill participation is counted on them. */
+  readonly teamKills: number;
   readonly arena: boolean;
   readonly durationSeconds: number;
   readonly isPlayer: boolean;
   readonly region: PlayerParams['region'];
   readonly mostDamage: number;
+  /** Solo rank: undefined until it is known, null for no rank. */
+  readonly rank: MatchRanks['ranks'][string] | undefined;
   readonly staticData: StaticData | undefined;
 }) {
-  const champion =
-    staticData === undefined
-      ? undefined
-      : findChampion(staticData, one.championId);
-  const championName = champion?.name ?? one.championName;
+  const rankId = useId();
   const { riotId } = one;
-  const name = riotId === null ? championName : riotId.gameName;
+  const name = riotId === null ? one.championName : riotId.gameName;
   // What a support is judged on is the vision, not the minions.
   const isSupport = one.position === 'UTILITY';
   return (
@@ -299,37 +328,71 @@ function PlayerRow({
       data-player={isPlayer}
     >
       <div role="cell" className={[styles.cell, styles.player].join(' ')}>
-        <GameImage
-          src={
-            staticData === undefined || champion === undefined
-              ? null
-              : championImageUrl(staticData.version, champion)
-          }
-          size={CHAMPION_IMAGE_SIZE}
-          className={styles.championImage}
-          alt={championName}
-          fallback={
-            <span
-              className={styles.championImage}
-              role="img"
-              aria-label={championName}
+        <div className={styles.icon}>
+          <ChampionIcon
+            championId={one.championId}
+            championName={one.championName}
+            staticData={staticData}
+            size={CHAMPION_IMAGE_SIZE}
+            badge={one.level}
+          />
+        </div>
+        <div
+          role="group"
+          aria-label="Summoner spells"
+          className={[styles.icon, styles.spells].join(' ')}
+        >
+          {one.spellIds.map((spellId) => (
+            <GameSlot
+              key={spellId}
+              thing={spellThing(staticData, spellId)}
+              size={SPELL_SIZE}
+              className={styles.spell}
             />
-          }
-        />
+          ))}
+        </div>
+        <div
+          role="group"
+          aria-label="Runes"
+          className={[styles.icon, styles.runes].join(' ')}
+        >
+          {one.runes !== null && (
+            <>
+              <GameSlot
+                thing={runeThing(staticData, one.runes.keystoneId)}
+                size={KEYSTONE_SIZE}
+                className={styles.keystone}
+              />
+              <GameSlot
+                thing={runeThing(staticData, one.runes.secondaryStyleId)}
+                size={SECONDARY_TREE_SIZE}
+                className={styles.secondary}
+              />
+            </>
+          )}
+        </div>
         {riotId !== null && !isPlayer ? (
+          // The link is the whole width the name has, over the height of the row. Its name is
+          // the player's: the rank is its description.
           <Link
-            className={styles.name}
+            className={styles.nameZone}
             to={playerPath({
               region,
               name: riotId.gameName,
               tag: riotId.tagLine,
             })}
             title={`${riotId.gameName}#${riotId.tagLine}`}
+            aria-label={name}
+            aria-describedby={rankId}
           >
-            {name}
+            <span className={styles.name}>{name}</span>
+            <RankLine id={rankId} rank={rank} />
           </Link>
         ) : (
-          <span className={styles.name}>{name}</span>
+          <span className={styles.nameZone}>
+            <span className={styles.name}>{name}</span>
+            <RankLine id={rankId} rank={rank} />
+          </span>
         )}
       </div>
       <div role="cell" className={[styles.cell, styles.kda].join(' ')}>
@@ -337,7 +400,7 @@ function PlayerRow({
           {one.kills} / {one.deaths} / {one.assists}
         </span>
         <span className={styles.small}>
-          {formatKdaRatio(one.kills, one.deaths, one.assists)}
+          {formatKillParticipation(one.kills, one.assists, teamKills)} KP
         </span>
       </div>
       <div role="cell" className={[styles.cell, styles.damage].join(' ')}>
@@ -366,49 +429,57 @@ function PlayerRow({
         )}
       </div>
       <div role="cell" className={[styles.cell, styles.items].join(' ')}>
-        {one.itemIds.map((itemId, slot) => (
-          <Item
-            // The same item can be bought twice: the slot tells them apart.
-            key={slot}
-            itemId={itemId}
-            staticData={staticData}
-          />
-        ))}
+        {one.itemIds.map((itemId, slot) =>
+          itemId === 0 ? (
+            <span key={slot} className={styles.item} aria-hidden="true" />
+          ) : (
+            <GameSlot
+              // The same item can be bought twice: the slot tells them apart.
+              key={slot}
+              thing={itemThing(staticData, itemId)}
+              size={ITEM_SIZE}
+              className={styles.item}
+            />
+          ),
+        )}
       </div>
     </div>
   );
 }
 
-function Item({
-  itemId,
-  staticData,
+/**
+ * The solo rank of a player, under their name: the emblem and "DIAMOND 1". Nothing until the
+ * rank is known (the line keeps its room), "UNRANKED" for a player with no rank.
+ */
+function RankLine({
+  id,
+  rank,
 }: {
-  readonly itemId: number;
-  readonly staticData: StaticData | undefined;
+  readonly id: string;
+  readonly rank: MatchRanks['ranks'][string] | undefined;
 }) {
-  if (itemId === 0) {
-    return <span className={styles.item} aria-hidden="true" />;
+  if (rank === undefined) {
+    return <span id={id} className={styles.rank} />;
   }
-  const name =
-    staticData === undefined ? undefined : findItemName(staticData, itemId);
+  if (rank === null) {
+    return (
+      <span id={id} className={styles.rank}>
+        UNRANKED
+      </span>
+    );
+  }
+  const emblem = rankEmblem(rank.tier);
   return (
-    <GameImage
-      src={
-        staticData === undefined
-          ? null
-          : itemImageUrl(staticData.version, itemId)
-      }
-      size={ITEM_SIZE}
-      className={styles.item}
-      alt={name}
-      fallback={
-        <span
-          className={styles.item}
-          role={name === undefined ? undefined : 'img'}
-          aria-label={name}
-          title={name}
+    <span id={id} className={styles.rank}>
+      {emblem !== undefined && (
+        <img
+          src={emblem}
+          alt=""
+          height={RANK_EMBLEM_HEIGHT}
+          className={styles.emblem}
         />
-      }
-    />
+      )}
+      {formatRankName(rank)}
+    </span>
   );
 }

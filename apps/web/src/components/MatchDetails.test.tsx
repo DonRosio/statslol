@@ -1,5 +1,5 @@
 import type { MatchSummary } from '@statslol/shared';
-import { within } from '@testing-library/react';
+import { waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { delay, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
@@ -28,12 +28,13 @@ const CLASSIC = matchSummary('KR_3', {
 async function showCard(
   match: MatchSummary,
   options: Parameters<typeof mockPlayerApi>[0] = {},
+  path = PLAYER_PAGE_PATH,
 ) {
   mockPlayerApi({
     matches: matchPages({ 0: { matches: [match], nextStart: null } }),
     ...options,
   });
-  renderPage(PLAYER_PAGE_PATH);
+  renderPage(path);
   return at(await findMatches(), 0);
 }
 
@@ -76,7 +77,7 @@ describe('details of a match', () => {
     ).not.toBeNull();
   });
 
-  it('totals the team: kills, gold, and what it took on the map', async () => {
+  it('write the kills and the gold of the team, with the icon of gold', async () => {
     const card = await showCard(CLASSIC);
 
     await openDetails(card);
@@ -84,14 +85,42 @@ describe('details of a match', () => {
     const blue = await within(card).findByRole('region', {
       name: 'Victory, Blue team',
     });
-    expect(within(blue).getByText('30 kills · 52.3k gold')).toBeDefined();
-    expect(
-      within(blue).getByText(/9 towers · 3 dragons · 1 barons · 1 inhibitors/),
-    ).toBeDefined();
+    expect(within(blue).getByText('30 kills')).toBeDefined();
+    // 52,300 gold: "52.3K", after the icon of gold.
+    const gold = within(blue).getByRole('img', { name: 'Gold' });
+    expect(gold.parentElement?.textContent).toBe('52.3K');
+  });
+
+  it('count what the team took on the map, with an icon for each: dragons, grubs, heralds, barons, towers', async () => {
+    const card = await showCard(CLASSIC);
+
+    await openDetails(card);
+
+    const blue = await within(card).findByRole('region', {
+      name: 'Victory, Blue team',
+    });
+    const counts = (region: HTMLElement) =>
+      ['Dragons', 'Void grubs', 'Rift Heralds', 'Barons', 'Towers'].map(
+        (name) => [
+          name,
+          within(region).getByRole('img', { name }).parentElement?.textContent,
+        ],
+      );
+    expect(counts(blue)).toEqual([
+      ['Dragons', '3'],
+      ['Void grubs', '3'],
+      ['Rift Heralds', '0'],
+      ['Barons', '1'],
+      ['Towers', '9'],
+    ]);
     const red = within(card).getByRole('region', { name: 'Defeat, Red team' });
-    expect(
-      within(red).getByText(/2 towers · 1 dragons · 0 barons · 1 heralds/),
-    ).toBeDefined();
+    expect(counts(red)).toEqual([
+      ['Dragons', '1'],
+      ['Void grubs', '0'],
+      ['Rift Heralds', '1'],
+      ['Barons', '0'],
+      ['Towers', '2'],
+    ]);
   });
 
   it('give each player the numbers of the game', async () => {
@@ -104,20 +133,60 @@ describe('details of a match', () => {
     });
     const rows = within(blue).getAllByRole('row').slice(1);
     const first = at(rows, 0);
-    // Hide on bush#KR1: 7 / 2 / 9 (8.00), 10,000 damage, 192 CS in 30:34 (6.3 per minute).
+    // The rank comes after the table: waited for, so that the cells do not depend on the timing.
+    await within(first).findByText('DIAMOND 1');
+    // Hide on bush#KR1: 7 / 2 / 9, in 16 of the 30 kills of the team (53 %), 10,000 damage, 192 CS in 30:34 (6.3 per minute).
     const cells = within(first)
       .getAllByRole('cell')
       .map((cell) => cell.textContent);
+    // The level is in the corner of the champion's icon, before the name and the rank.
     expect(cells).toEqual([
-      'Hide on bush',
-      '7 / 2 / 98.00',
+      '15Hide on bushDIAMOND 1',
+      '7 / 2 / 953% KP',
       '10,000',
       '6.3CS/min',
       '',
     ]);
   });
 
-  it('write neither the level of the players, nor the names of the columns', async () => {
+  it('count the kill participation on the kills of the team of each player', async () => {
+    const details = classicDetails('KR_3');
+    // The red team: 9 kills, of which a player took 5 kills and 2 assists.
+    const [, red] = details.teams;
+    if (red === undefined) throw new Error('A match has 2 teams');
+    red.kills = 9;
+    const first = red.players[0];
+    if (first === undefined) throw new Error('A team has players');
+    first.kills = 5;
+    first.assists = 2;
+    // A team that did not kill anyone.
+    const [blue] = details.teams;
+    if (blue === undefined) throw new Error('A match has 2 teams');
+    blue.kills = 0;
+    const card = await showCard(CLASSIC, {
+      matchDetails: () => HttpResponse.json(details),
+    });
+
+    await openDetails(card);
+
+    const redRegion = await within(card).findByRole('region', {
+      name: 'Defeat, Red team',
+    });
+    const blueRegion = within(card).getByRole('region', {
+      name: 'Victory, Blue team',
+    });
+    const kp = (region: HTMLElement, row: number) =>
+      at(
+        within(at(within(region).getAllByRole('row'), row)).getAllByRole(
+          'cell',
+        ),
+        1,
+      ).textContent;
+    expect(kp(redRegion, 1)).toBe('5 / 2 / 278% KP');
+    expect(kp(blueRegion, 1)).toBe('7 / 2 / 90% KP');
+  });
+
+  it('write no "Lvl", only the level in the corner of the icon, nor the names of the columns', async () => {
     const card = await showCard(CLASSIC);
 
     await openDetails(card);
@@ -126,11 +195,14 @@ describe('details of a match', () => {
       name: 'Victory, Blue team',
     });
     expect(within(blue).queryByText(/Lvl/)).toBeNull();
+    // Hide on bush#KR1 is level 15; the badge of the icon says it.
+    const first = at(within(blue).getAllByRole('row'), 1);
+    expect(within(first).getByText('15').className).toContain('badge');
     // The columns keep their names for screen readers, out of sight.
     const headers = within(blue).getAllByRole('columnheader');
     expect(headers.map((header) => header.textContent)).toEqual([
       'Player',
-      'KDA',
+      'KDA and kill participation',
       'Damage to champions',
       'Creep score per minute, or vision score',
       'Items',
@@ -204,7 +276,7 @@ describe('details of a match', () => {
     expect(width(at(within(red).getAllByRole('row'), 5))).toBe('100%');
   });
 
-  it('show the items, named', async () => {
+  it('show the items, named, and the spells and runes before the name', async () => {
     const card = await showCard(CLASSIC);
 
     await openDetails(card);
@@ -217,7 +289,40 @@ describe('details of a match', () => {
       within(row)
         .getAllByRole('img')
         .map((image) => image.getAttribute('alt')),
-    ).toEqual(['Sylas', 'Trinity Force', 'Stealth Ward']);
+    ).toEqual([
+      'Sylas',
+      'Flash',
+      'Ignite',
+      'Lethal Tempo',
+      'Resolve',
+      'Trinity Force',
+      'Stealth Ward',
+    ]);
+    // The main rune is bigger than the tree of the secondary ones.
+    expect(
+      within(row).getByRole('img', { name: 'Lethal Tempo' }).className,
+    ).toContain('keystone');
+    expect(
+      within(row).getByRole('img', { name: 'Resolve' }).className,
+    ).toContain('secondary');
+  });
+
+  it('make the whole width of the name a link, not only the text', async () => {
+    const card = await showCard(CLASSIC);
+
+    await openDetails(card);
+
+    const blue = await within(card).findByRole('region', {
+      name: 'Victory, Blue team',
+    });
+    const ally = within(at(within(blue).getAllByRole('row'), 2)).getByRole(
+      'link',
+    );
+    // The link is the zone of the name (it fills the room the name has, over the height of
+    // the row), and the text is inside it.
+    expect(ally.className).toContain('nameZone');
+    expect(ally.textContent).toContain('Ally 1');
+    expect(ally.firstElementChild?.className).toContain('name');
   });
 
   it('close with the arrow, and are not asked again when opened again', async () => {
@@ -284,7 +389,12 @@ describe('details of a match', () => {
 
 describe('details of an Arena match', () => {
   async function showArena() {
-    return showCard({ ...ARENA_MATCH, participants: [] });
+    // The Arena games are in the Arena tab.
+    return showCard(
+      { ...ARENA_MATCH, participants: [] },
+      {},
+      `${PLAYER_PAGE_PATH}/arena`,
+    );
   }
 
   it('list the teams by place, without sides', async () => {
@@ -383,5 +493,102 @@ describe('tabs of the details', () => {
     await user.click(within(card).getByRole('button', SHOW));
 
     expect(tab(card, 'General').getAttribute('aria-selected')).toBe('true');
+  });
+});
+
+describe('ranks in the details', () => {
+  async function openWithRanks(
+    options: Parameters<typeof mockPlayerApi>[0] = {},
+  ) {
+    const card = await showCard(CLASSIC, options);
+    await openDetails(card);
+    const blue = await within(card).findByRole('region', {
+      name: 'Victory, Blue team',
+    });
+    const red = within(card).getByRole('region', { name: 'Defeat, Red team' });
+    return { card, blue, red };
+  }
+
+  const nameCell = (region: HTMLElement, row: number) =>
+    at(
+      within(at(within(region).getAllByRole('row'), row)).getAllByRole('cell'),
+      0,
+    );
+
+  it('are written under the names: the emblem, then "DIAMOND 1"', async () => {
+    const { blue } = await openWithRanks();
+
+    await waitFor(() => {
+      expect(nameCell(blue, 1).textContent).toBe('15Hide on bushDIAMOND 1');
+    });
+    expect(nameCell(blue, 2).textContent).toContain('EMERALD 2');
+    // Master and above have no division.
+    const { red } = {
+      red: within(document.body).getByRole('region', {
+        name: 'Defeat, Red team',
+      }),
+    };
+    await waitFor(() => {
+      expect(nameCell(red, 1).textContent).toContain('MASTER');
+    });
+    expect(nameCell(red, 1).textContent).not.toMatch(/MASTER \d/);
+    // Nobody is asked for a rank that is not theirs: the emblem is the one of the tier.
+    const emblem = nameCell(blue, 1).querySelector('img[src*="diamond"]');
+    expect(emblem).not.toBeNull();
+    expect(emblem?.getAttribute('alt')).toBe('');
+  });
+
+  it('say "UNRANKED" for a player with no rank, and have no emblem for Iron', async () => {
+    const { red } = await openWithRanks();
+
+    // The 9th player has no rank; the 10th is Iron IV, which has no emblem yet.
+    await waitFor(() => {
+      expect(nameCell(red, 4).textContent).toContain('UNRANKED');
+    });
+    expect(nameCell(red, 5).textContent).toContain('IRON 4');
+    // The only images of the cell are the champion's, the spells' and the runes' (all named).
+    expect(nameCell(red, 5).querySelector('img[alt=""]')).toBeNull();
+  });
+
+  it('are the description of the link of a player, whose name stays its name', async () => {
+    const { blue } = await openWithRanks();
+
+    const ally = within(at(within(blue).getAllByRole('row'), 2)).getByRole(
+      'link',
+      {
+        name: 'Ally 1',
+      },
+    );
+    await waitFor(() => {
+      const description = document.getElementById(
+        ally.getAttribute('aria-describedby') ?? '',
+      );
+      expect(description?.textContent).toBe('EMERALD 2');
+    });
+  });
+
+  it('are asked once the details are there, and only then', async () => {
+    const requests = recordRequests();
+    const card = await showCard(CLASSIC);
+
+    expect(requests.some((path) => path.endsWith('/ranks'))).toBe(false);
+    await openDetails(card);
+    await within(card).findByRole('region', { name: 'Victory, Blue team' });
+
+    await waitFor(() => {
+      expect(requests).toContain('/api/v1/matches/kr/KR_3/ranks');
+    });
+  });
+
+  it('are not needed: the table is the same when they cannot be had', async () => {
+    const { blue } = await openWithRanks({
+      matchRanks: () => new HttpResponse(null, { status: 500 }),
+    });
+
+    // Nothing is written under the names, and nothing says "unranked".
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(nameCell(blue, 1).textContent).toBe('15Hide on bush');
+    expect(within(blue).queryByText('UNRANKED')).toBeNull();
+    expect(within(blue).getAllByRole('row')).toHaveLength(6);
   });
 });

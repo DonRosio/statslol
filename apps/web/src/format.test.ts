@@ -4,6 +4,7 @@ import {
   formatCsPerMinute,
   formatDuration,
   formatKdaRatio,
+  formatKillParticipation,
   formatPlacement,
   formatResult,
   formatTier,
@@ -107,14 +108,36 @@ describe('formatTimeAgo', () => {
 
   it.each([
     ['2026-10-04T11:59:30Z', 'just now'],
-    ['2026-10-04T11:55:00Z', '5 minutes ago'],
-    ['2026-10-04T09:30:00Z', '2 hours ago'],
-    ['2026-10-03T10:00:00Z', 'yesterday'],
-    ['2026-09-29T12:00:00Z', '5 days ago'],
-    ['2026-09-20T12:00:00Z', '2 weeks ago'],
-    ['2026-08-01T12:00:00Z', '2 months ago'],
-    ['2024-10-01T12:00:00Z', '2 years ago'],
+    ['2026-10-04T11:59:00Z', '1 min ago'],
+    ['2026-10-04T11:26:00Z', '34 min ago'],
+    ['2026-10-04T11:00:00Z', '1h ago'],
+    ['2026-10-04T07:00:30Z', '4h ago'],
+    ['2026-10-03T12:00:00Z', '1d ago'],
+    ['2026-10-03T11:00:00Z', '1d ago'],
+    ['2026-09-29T12:00:00Z', '5d ago'],
+    ['2026-09-20T12:00:00Z', '14d ago'],
+    ['2025-12-20T12:00:00Z', '288d ago'],
+    ['2024-10-01T12:00:00Z', '733d ago'],
   ])('%s → %s', (date, expected) => {
     expect(formatTimeAgo(date, now)).toBe(expected);
+  });
+});
+
+describe('formatKillParticipation', () => {
+  it.each([
+    [7, 9, 36, '44%'],
+    [0, 0, 20, '0%'],
+    [10, 5, 15, '100%'],
+    // Rounded to the nearest percent.
+    [1, 1, 3, '67%'],
+  ])(
+    '%i kills and %i assists in %i team kills: %s',
+    (kills, assists, team, expected) => {
+      expect(formatKillParticipation(kills, assists, team)).toBe(expected);
+    },
+  );
+
+  it('is 0% when the team has no kill, rather than a division by zero', () => {
+    expect(formatKillParticipation(0, 0, 0)).toBe('0%');
   });
 });

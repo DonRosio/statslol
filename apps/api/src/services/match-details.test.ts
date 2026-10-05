@@ -114,7 +114,6 @@ describe('buildMatchDetails', () => {
           dragon: { kills: 3 },
           baron: { kills: 1 },
           riftHerald: { kills: 2 },
-          // Left out: not shown.
           horde: { kills: 6 },
         },
       },
@@ -128,6 +127,7 @@ describe('buildMatchDetails', () => {
       dragons: 3,
       barons: 1,
       heralds: 2,
+      grubs: 6,
     });
     // What Riot does not list is 0.
     expect(red?.objectives).toEqual({
@@ -136,6 +136,7 @@ describe('buildMatchDetails', () => {
       dragons: 0,
       barons: 0,
       heralds: 0,
+      grubs: 0,
     });
   });
 

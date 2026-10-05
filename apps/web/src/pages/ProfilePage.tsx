@@ -5,20 +5,20 @@ import {
 } from '@statslol/shared';
 import { useQuery } from '@tanstack/react-query';
 import { useId } from 'react';
-import { useParams } from 'react-router';
+import { Outlet, useParams } from 'react-router';
 
 import { ApiError } from '../api/client.ts';
 import { playerProfileQuery } from '../api/players.ts';
 import { ErrorMessage } from '../components/ErrorMessage.tsx';
-import { MatchHistory } from '../components/MatchHistory.tsx';
+import { Panel } from '../components/Panel.tsx';
 import { ProfileHeader } from '../components/ProfileHeader.tsx';
-import { RankCards } from '../components/RankCards.tsx';
+import { ProfileTabs } from '../components/ProfileTabs.tsx';
 import { SearchForm } from '../components/SearchForm.tsx';
 import { REGION_NAMES } from '../regions.ts';
 import { NotFoundPage } from './NotFoundPage.tsx';
-import styles from './ProfilePage.module.css';
+import type { ProfileContext } from './ProfileOverview.tsx';
 
-/** A player's profile: icon, level, ranks and match history. */
+/** A player's profile: icon, level and Update button, then the tab that is open. */
 export function ProfilePage() {
   // The URL can be typed or edited by hand: same checks as the API before using it.
   const params = playerParamsSchema.safeParse(useParams());
@@ -39,32 +39,32 @@ function Profile({ player }: { player: PlayerParams }) {
 
   let content;
   if (profile.data === undefined && profile.error !== null) {
-    content =
-      profile.error instanceof ApiError && profile.error.status === 404 ? (
-        <PlayerNotFound player={player} />
-      ) : (
-        <ErrorMessage
-          title="The profile could not be loaded."
-          error={profile.error}
-          onRetry={() => {
-            void profile.refetch();
-          }}
-          retrying={profile.isFetching}
-        />
-      );
-  } else {
     content = (
-      <div className={styles.columns}>
-        <div>
-          {profile.data === undefined && (
-            <p role="status" className="visually-hidden">
-              Loading the profile…
-            </p>
-          )}
-          <RankCards ranks={profile.data?.ranks} />
-        </div>
-        <MatchHistory player={player} />
-      </div>
+      <Panel>
+        {profile.error instanceof ApiError && profile.error.status === 404 ? (
+          <PlayerNotFound player={player} />
+        ) : (
+          <ErrorMessage
+            title="The profile could not be loaded."
+            error={profile.error}
+            onRetry={() => {
+              void profile.refetch();
+            }}
+            retrying={profile.isFetching}
+          />
+        )}
+      </Panel>
+    );
+  } else {
+    const context: ProfileContext = { player, profile: profile.data };
+    content = (
+      <>
+        <ProfileTabs player={player} />
+        <Panel>
+          {/* The tab of the address: what each one shows is in its own page. */}
+          <Outlet context={context} />
+        </Panel>
+      </>
     );
   }
 

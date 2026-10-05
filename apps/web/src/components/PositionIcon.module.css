@@ -1,25 +1,4 @@
+/* The chip already has its own dark background and rounded corners. */
 .icon {
   display: block;
-  fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-/* The lines of the map, which are the same for every position. */
-.lane {
-  stroke: var(--color-muted);
-  stroke-width: 1.4;
-  opacity: 0.45;
-}
-
-/* The lane (or the sign) of the position: as bright as the text. */
-.active {
-  stroke: var(--color-text);
-  stroke-width: 2.4;
-}
-
-.filled {
-  fill: var(--color-text);
-  stroke: var(--color-text);
-  stroke-width: 1;
 }

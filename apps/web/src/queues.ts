@@ -1,5 +1,8 @@
+import type { MatchSummary } from '@statslol/shared';
+
 /**
- * Names of the game modes, by Riot's queue ID. Source: Riot's list,
+ * Names of the game modes, by Riot's queue ID, as short as they can be: "Solo/Duo" and
+ * "Flex" are ranked, "Normal" is the draft or the blind pick. Source: Riot's list,
  * https://static.developer.riotgames.com/docs/lol/queues.json, which lags behind the game
  * (e.g. 1750, the Arena of 2026, is missing): unknown queues are named QUEUE_FALLBACK_NAME.
  */
@@ -7,10 +10,10 @@ const QUEUE_NAMES: ReadonlyMap<number, string> = new Map([
   [0, 'Custom game'],
   [76, 'URF'],
   [325, 'All Random'],
-  [400, 'Normal Draft'],
-  [420, 'Ranked Solo/Duo'],
-  [430, 'Normal Blind'],
-  [440, 'Ranked Flex'],
+  [400, 'Normal'],
+  [420, 'Solo/Duo'],
+  [430, 'Normal'],
+  [440, 'Flex'],
   [450, 'ARAM'],
   [480, 'Swiftplay'],
   [490, 'Quickplay'],
@@ -35,4 +38,18 @@ export const QUEUE_FALLBACK_NAME = 'Other mode';
 
 export function queueName(queueId: number): string {
   return QUEUE_NAMES.get(queueId) ?? QUEUE_FALLBACK_NAME;
+}
+
+/** The modes of Arena: 16 players in teams, ranked by place. They have a tab of their own. */
+const ARENA_QUEUE_IDS: ReadonlySet<number> = new Set([1700, 1710, 1750]);
+
+/**
+ * Whether a game is an Arena game: its mode is one of Arena, or it was ranked by place (the
+ * modes of Arena that the list above does not know yet give a place all the same).
+ */
+export function isArenaGame({
+  queueId,
+  placement,
+}: Pick<MatchSummary, 'queueId' | 'placement'>): boolean {
+  return ARENA_QUEUE_IDS.has(queueId) || placement !== null;
 }

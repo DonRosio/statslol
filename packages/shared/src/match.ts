@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { rankSchema } from './player-profile.ts';
 import { regionSchema } from './region.ts';
 
 /** Number of matches in a page of a player's history. */
@@ -107,6 +108,8 @@ export const matchObjectivesSchema = z.object({
   dragons: z.number().int().nonnegative(),
   barons: z.number().int().nonnegative(),
   heralds: z.number().int().nonnegative(),
+  // Void grubs, the small monsters of the early game.
+  grubs: z.number().int().nonnegative(),
 });
 
 export type MatchObjectives = z.infer<typeof matchObjectivesSchema>;
@@ -170,3 +173,14 @@ export const matchDetailsSchema = z.object({
 });
 
 export type MatchDetails = z.infer<typeof matchDetailsSchema>;
+
+/**
+ * Answer of GET /api/v1/matches/:region/:matchId/ranks: the ranked solo/duo rank of each player of
+ * a match, by `participantId` (as text: the keys of a JSON object). Null for a player with no
+ * rank; a player whose rank could not be asked is left out.
+ */
+export const matchRanksSchema = z.object({
+  ranks: z.record(z.string().regex(/^\d+$/), rankSchema.nullable()),
+});
+
+export type MatchRanks = z.infer<typeof matchRanksSchema>;

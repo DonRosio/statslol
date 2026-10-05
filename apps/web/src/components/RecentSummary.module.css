@@ -46,16 +46,6 @@
   line-height: 1.2;
 }
 
-/* Also the empty square shown when the image cannot be loaded. */
-.championImage {
-  flex: none;
-  display: block;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius);
-  background: var(--color-skeleton);
-}
-
 /* The win rate of a champion: blue from half of the games won, orange under. */
 .rateWon,
 .rateLost {

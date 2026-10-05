@@ -24,11 +24,13 @@
   --color-surface: #2d2c33;
   --color-text: #efedf1;
   --color-muted: #9c97a6;
+  /* Secondary text with no panel under it (the header and the tabs of a profile): lighter. */
+  --color-soft: color-mix(in srgb, var(--color-text) 35%, var(--color-muted));
   --color-accent: #ff94c2;
   /* Text on the accent: dark, more readable than white on the pink. */
   --color-on-accent: #1a0f16;
-  --color-win: #3a96dc;
-  --color-loss: #ff6b4f;
+  --color-win: #3589cb;
+  --color-loss: #ed6449;
 
   /* Derived from the palette. */
   --color-accent-hover: color-mix(in srgb, var(--color-accent) 85%, white);
@@ -46,7 +48,7 @@
     var(--color-surface) 85%,
     var(--color-text)
   );
-  --color-error: var(--color-loss);
+  --color-error: var(--color-loss-text);
   /* Only the status of the API needs a green: it is not part of the palette. */
   --color-success: #4cc38a;
 
@@ -79,8 +81,16 @@
   /* A remake counts for nothing: no tint. */
   --color-remake: var(--color-muted);
 
-  /* The panel lets the background show through a little. */
-  --color-panel: color-mix(in srgb, var(--color-surface) 84%, transparent);
+  /*
+   * The panel that holds the content: halfway between the violet of the background and the
+   * anthracite of the boxes it holds (--color-inset), and see-through, so the glow shows.
+   */
+  --color-panel-base: color-mix(
+    in srgb,
+    var(--color-bg) 50%,
+    var(--color-inset)
+  );
+  --color-panel: color-mix(in srgb, var(--color-panel-base) 66%, transparent);
   /* Something set into the panel (a rank, a match that was a remake): darker than it. */
   --color-inset: color-mix(in srgb, var(--color-surface) 65%, var(--color-bg));
   /* The dark gray frame around the spells, the runes and the items of a match. */
@@ -184,21 +194,12 @@ button:disabled {
   min-height: 100dvh;
 }
 
-/* The content of every page sits in one panel, in the middle of the window. */
+/* The column of the page, in the middle of the window: its content sits in a Panel. */
 main {
   flex: 1 0 auto;
   box-sizing: border-box;
   width: min(64rem, 100% - 1rem);
   margin: 0.75rem auto;
-  padding: 1.25rem;
-  border-radius: var(--radius-panel);
-  background: var(--color-panel);
-}
-
-@media (width < 36rem) {
-  main {
-    padding: 0.75rem;
-  }
 }
 
 /* A grey block in place of content that is loading; it pulses gently. */

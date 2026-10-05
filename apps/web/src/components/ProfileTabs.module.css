@@ -1,0 +1,25 @@
+/* The tabs of a profile, on the background: no bar, only a line under the open tab. */
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+  padding: 0 0.25rem;
+}
+
+.tab {
+  padding: 0.5rem 0.875rem;
+  border-bottom: 2px solid transparent;
+  color: var(--color-soft);
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.tab:hover {
+  color: var(--color-text);
+}
+
+/* NavLink gives the open tab this class. */
+.tab:global(.active) {
+  border-bottom-color: var(--color-accent);
+  color: var(--color-text);
+}

@@ -10,33 +10,35 @@ describe('PositionIcon', () => {
     ['MIDDLE', 'Mid'],
     ['BOTTOM', 'Bot'],
     ['UTILITY', 'Support'],
-  ])('draws %s and says it is %s', (position, name) => {
+  ])('shows the icon of %s and says it is %s', (position, name) => {
     render(<PositionIcon position={position} />);
 
     const icon = screen.getByRole('img', { name });
-    expect(icon.tagName.toLowerCase()).toBe('svg');
-    // The 3 lanes of the map, and what marks the position.
-    expect(icon.querySelectorAll('path')).toHaveLength(4);
+    expect(icon.tagName.toLowerCase()).toBe('img');
+    expect(icon.getAttribute('title')).toBe(name);
   });
 
-  it('draws a different mark for each position', () => {
-    const marks = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'].map(
+  it('has an icon of its own for each position', () => {
+    const sources = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'].map(
       (position) => {
         const { container, unmount } = render(
           <PositionIcon position={position} />,
         );
-        const paths = [...container.querySelectorAll('path')];
+        const source = container.querySelector('img')?.getAttribute('src');
         unmount();
-        return paths.at(-1)?.getAttribute('d');
+        return source;
       },
     );
 
-    expect(new Set(marks).size).toBe(5);
+    expect(new Set(sources).size).toBe(5);
+    expect(
+      sources.every((source) => source !== null && source !== undefined),
+    ).toBe(true);
   });
 
-  it.each([null, '', 'SOMETHING'])('draws nothing for %j', (position) => {
+  it.each([null, '', 'SOMETHING'])('shows nothing for %j', (position) => {
     const { container } = render(<PositionIcon position={position} />);
 
-    expect(container.querySelector('svg')).toBeNull();
+    expect(container.querySelector('img')).toBeNull();
   });
 });

@@ -22,10 +22,12 @@ import {
 } from './riot-calls.ts';
 import { healthRoutes } from './routes/health.ts';
 import { matchDetailsRoutes } from './routes/match-details.ts';
+import { matchRanksRoutes } from './routes/match-ranks.ts';
 import { playerRoutes } from './routes/players.ts';
 import { staticDataRoutes } from './routes/static-data.ts';
 import { createMatchHistoryService } from './services/match-history.ts';
 import { createMatchLoader } from './services/match-loader.ts';
+import { createMatchRanksService } from './services/match-ranks.ts';
 import { zodSerializerCompiler, zodValidatorCompiler } from './zod.ts';
 
 // Methods that only read: other websites may make browsers send them (links, images...).
@@ -157,6 +159,10 @@ export function buildApp(
     cache,
   });
   app.register(matchDetailsRoutes, { prefix: '/api/v1', matches });
+  app.register(matchRanksRoutes, {
+    prefix: '/api/v1',
+    ranks: createMatchRanksService({ matches, riot: cachedRiot, log: app.log }),
+  });
   app.register(staticDataRoutes, {
     prefix: '/api/v1',
     cache,

@@ -98,26 +98,14 @@ export function positionName(position: string | null): string | null {
   return position === null ? null : (POSITION_NAMES.get(position) ?? null);
 }
 
-const relativeTime = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
-const TIME_UNITS: readonly (readonly [Intl.RelativeTimeFormatUnit, number])[] =
-  [
-    ['year', 365 * 24 * 3600],
-    ['month', 30 * 24 * 3600],
-    ['week', 7 * 24 * 3600],
-    ['day', 24 * 3600],
-    ['hour', 3600],
-    ['minute', 60],
-  ];
-
-/** How long before `now` (in ms) the ISO date was: "5 minutes ago", "yesterday"... */
+/** How long before `now` (in ms) the ISO date was: "34 min ago", "5h ago", "288d ago". Days at most. */
 export function formatTimeAgo(isoDate: string, now: number): string {
-  const seconds = (now - Date.parse(isoDate)) / 1000;
-  for (const [unit, unitSeconds] of TIME_UNITS) {
-    if (seconds >= unitSeconds) {
-      return relativeTime.format(-Math.floor(seconds / unitSeconds), unit);
-    }
-  }
-  return 'just now';
+  const minutes = Math.floor((now - Date.parse(isoDate)) / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${String(minutes)} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${String(hours)}h ago`;
+  return `${String(Math.floor(hours / 24))}d ago`;
 }
 
 const dateTime = new Intl.DateTimeFormat('en', {
@@ -158,7 +146,36 @@ export function formatNumber(value: number): string {
   return integer.format(value);
 }
 
-/** Gold in thousands, with 1 decimal: "19.0k". */
+/** Gold in thousands, with 1 decimal: "42.3K". */
 export function formatGold(gold: number): string {
-  return `${(gold / 1000).toFixed(1)}k`;
+  return `${(gold / 1000).toFixed(1)}K`;
+}
+
+/**
+ * Kill participation: the share of the kills of the team the player took part in, with a kill
+ * or an assist, as a rounded percentage ("44%"). 0% for a team without a kill.
+ */
+export function formatKillParticipation(
+  kills: number,
+  assists: number,
+  teamKills: number,
+): string {
+  const share = teamKills === 0 ? 0 : ((kills + assists) / teamKills) * 100;
+  return `${String(Math.round(share))}%`;
+}
+
+const DIVISION_NUMBERS: Readonly<Record<string, number>> = {
+  I: 1,
+  II: 2,
+  III: 3,
+  IV: 4,
+};
+
+/** A rank as it is written in a list of players: "DIAMOND 1", or "MASTER" (no divisions). */
+export function formatRankName({
+  tier,
+  division,
+}: Pick<Rank, 'tier' | 'division'>): string {
+  if (division === null) return tier;
+  return `${tier} ${String(DIVISION_NUMBERS[division] ?? division)}`;
 }

@@ -1,0 +1,11 @@
+.panel {
+  padding: 1.25rem;
+  border-radius: var(--radius-panel);
+  background: var(--color-panel);
+}
+
+@media (width < 36rem) {
+  .panel {
+    padding: 0.75rem;
+  }
+}

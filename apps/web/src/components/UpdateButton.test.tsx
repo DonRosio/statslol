@@ -50,33 +50,51 @@ describe('"Update" button', () => {
   });
 
   it('starts again from the first pages of matches, without asking for the older ones', async () => {
+    // A long history: one game in each of 8 pages.
     mockPlayerApi({
-      matches: matchPages({
-        0: { matches: [matchSummary('KR_5')], nextStart: 1 },
-        1: { matches: [matchSummary('KR_4')], nextStart: 2 },
-        2: { matches: [matchSummary('KR_3')], nextStart: null },
-      }),
+      matches: matchPages(
+        Object.fromEntries(
+          Array.from({ length: 8 }, (_, index) => [
+            index,
+            {
+              matches: [matchSummary(`KR_${String(8 - index)}`)],
+              nextStart: index < 7 ? index + 1 : null,
+            },
+          ]),
+        ),
+      ),
     });
     renderPage(PLAYER_PAGE_PATH);
-    // The second page comes by itself, the third with "Show more".
-    await userEvent
-      .setup()
-      .click(await screen.findByRole('button', { name: 'Show more' }));
-    await waitFor(() => {
-      expect(screen.getAllByRole('listitem')).toHaveLength(3);
-    });
+    // 5 pages come by themselves; "Show more" brings the 6th.
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole(
+        'button',
+        { name: 'Show more' },
+        { timeout: 4000 },
+      ),
+    );
+    await waitFor(
+      () => {
+        expect(screen.getAllByRole('listitem')).toHaveLength(6);
+      },
+      { timeout: 4000 },
+    );
     const requests = recordRequests();
 
     await clickUpdate();
 
-    // The first page, and the second one again for the summary: not the third.
+    // The first page again, then the pages the summary needs again: not the 6th.
+    await waitFor(
+      () => {
+        expect(
+          requests.filter((path) => path.endsWith('/matches')),
+        ).toHaveLength(5);
+      },
+      { timeout: 4000 },
+    );
     await waitFor(() => {
-      expect(requests.filter((path) => path.endsWith('/matches'))).toHaveLength(
-        2,
-      );
-    });
-    await waitFor(() => {
-      expect(screen.getAllByRole('listitem')).toHaveLength(2);
+      expect(screen.getAllByRole('listitem')).toHaveLength(5);
     });
     expect(screen.getByRole('button', { name: 'Show more' })).toBeDefined();
   });

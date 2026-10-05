@@ -106,13 +106,18 @@
   line-height: 1.2;
 }
 
-/* A player: the champion and the name, the score, the damage, the minions (or the vision), the items. */
+/* A player: the champion, spells, runes and name, the score, the damage, the minutes (or the vision), the items. */
 .row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 5.25rem 6rem 3.25rem auto;
-  align-items: center;
-  gap: 0 0.5rem;
-  padding: 0.1875rem 0.5rem;
+  grid-template-columns: minmax(0, 1fr) 4.5rem 5.5rem 3rem auto;
+  align-items: stretch;
+  gap: 0 0.375rem;
+  padding: 0 0.5rem;
+}
+
+/* The line under the mouse is a little lighter. */
+.row:hover {
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
 }
 
 .row[data-player='true'] {
@@ -120,10 +125,16 @@
   font-weight: bold;
 }
 
+.row[data-player='true']:hover {
+  background: color-mix(in srgb, var(--team-color) 30%, transparent);
+}
+
 .cell {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   min-width: 0;
+  padding: 0.3125rem 0;
   white-space: nowrap;
 }
 
@@ -131,47 +142,87 @@
   flex-direction: row;
   align-items: center;
   gap: 0.375rem;
+  padding: 0;
 }
 
-.championImage {
+/* The image, the spells and the runes keep their room, so the names are in line. */
+.icon {
   flex: none;
+  margin: 0.3125rem 0;
+}
+
+.spells {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 16px;
+}
+
+.spell {
   display: block;
-  width: 26px;
-  height: 26px;
+  width: 16px;
+  height: 16px;
   border-radius: 2px;
   background: var(--color-skeleton);
 }
 
-.name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* The main rune is bigger than the tree of the secondary ones. */
+.runes {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 22px;
 }
 
-a.name {
+.keystone {
+  display: block;
+  width: 22px;
+  height: 22px;
+}
+
+.secondary {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
+/* All the room the name has is the link, over the whole height of the row. */
+.nameZone {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  align-self: stretch;
+  min-width: 0;
+  padding-left: 0.25rem;
+}
+
+a.nameZone {
   color: inherit;
   text-decoration: none;
 }
 
-a.name:hover {
-  text-decoration: underline;
+/* A name that is too long is cut off, without dots. The name and the rank together are as high as the champion's icon (34px). */
+.name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: clip;
+  font-size: 0.90625rem;
+  font-weight: bold;
+  line-height: 18px;
 }
 
-/* How much damage compared to the player who dealt the most in the whole match. */
-.bar {
-  display: block;
-  width: 5.25rem;
-  height: 4px;
-  margin-top: 2px;
-  border-radius: 2px;
-  background: var(--color-frame-line);
+/* The score and the kill participation, one over the other, centered in their column. */
+.kda,
+.damage,
+.farm {
+  justify-content: center;
 }
 
-.barFill {
-  display: block;
-  height: 100%;
-  border-radius: 2px;
-  background: var(--team-color);
+.kda {
+  align-items: center;
+  text-align: center;
 }
 
 .farm {
@@ -179,8 +230,26 @@ a.name:hover {
   text-align: center;
 }
 
+/* How much damage compared to the player who dealt the most in the whole match. */
+.bar {
+  display: block;
+  width: 5.25rem;
+  height: 6px;
+  margin-top: 3px;
+  border-radius: 3px;
+  background: var(--color-frame-line);
+}
+
+.barFill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--team-color);
+}
+
 .items {
   flex-direction: row;
+  align-items: center;
   gap: 2px;
 }
 
@@ -223,4 +292,37 @@ a.name:hover {
     grid-area: items;
     justify-self: end;
   }
+}
+
+/* An amount or a count of the header of a team: its icon, then the number. */
+.stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.statIcon {
+  display: block;
+  /* Only the height is set: the width follows, so no icon is squeezed or stretched. */
+  width: auto;
+}
+
+/* The rank under the name: the emblem, then "DIAMOND 1" in small capitals; the line keeps its room. */
+.rank {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  height: 16px;
+  overflow: hidden;
+  font-size: 0.78125rem;
+  line-height: 16px;
+  font-weight: normal;
+  letter-spacing: 0.02em;
+  color: var(--result-muted);
+}
+
+.emblem {
+  flex: none;
+  display: block;
+  width: auto;
 }

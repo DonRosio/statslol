@@ -1,7 +1,7 @@
 import type { MatchHistory } from '@statslol/shared';
 
 import {
-  ARENA_MATCH,
+  ARAM_MATCH,
   matchSummary,
   PLAYER_API_PATH,
   PROFILE,
@@ -13,7 +13,7 @@ import type { FakeApi } from './fixtures.ts';
 export function knowPlayer(
   api: FakeApi,
   firstPage: MatchHistory = {
-    matches: [matchSummary('KR_3'), ARENA_MATCH],
+    matches: [matchSummary('KR_3'), ARAM_MATCH],
     nextStart: null,
   },
 ): void {

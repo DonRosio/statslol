@@ -177,6 +177,7 @@ export const riotMatchSchema = z.looseObject({
             .looseObject({
               baron: riotObjectiveSchema.optional(),
               dragon: riotObjectiveSchema.optional(),
+              horde: riotObjectiveSchema.optional(),
               inhibitor: riotObjectiveSchema.optional(),
               riftHerald: riotObjectiveSchema.optional(),
               tower: riotObjectiveSchema.optional(),

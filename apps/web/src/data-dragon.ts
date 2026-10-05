@@ -68,3 +68,54 @@ export function findRune(
 ): Rune | undefined {
   return staticData.runes[String(runeId)];
 }
+
+/** What is needed to show a spell, a rune or an item: its image, and its name if it is known. */
+export interface GameThing {
+  /** URL of the image; null when it cannot be known (no static data, or an unknown ID). */
+  readonly src: string | null;
+  readonly name: string | undefined;
+}
+
+/** A summoner spell (a `spellIds` of a match). */
+export function spellThing(
+  staticData: StaticData | undefined,
+  spellId: number,
+): GameThing {
+  const spell =
+    staticData === undefined ? undefined : findSpell(staticData, spellId);
+  return {
+    src:
+      staticData === undefined || spell === undefined
+        ? null
+        : spellImageUrl(staticData.version, spell),
+    name: spell?.name,
+  };
+}
+
+/** A rune or a tree of runes (a `runes` of a match). */
+export function runeThing(
+  staticData: StaticData | undefined,
+  runeId: number,
+): GameThing {
+  const rune =
+    staticData === undefined ? undefined : findRune(staticData, runeId);
+  return {
+    src: rune === undefined ? null : runeImageUrl(rune),
+    name: rune?.name,
+  };
+}
+
+/** An item. The file is named by the ID: the image is known even if the name is not. */
+export function itemThing(
+  staticData: StaticData | undefined,
+  itemId: number,
+): GameThing {
+  return {
+    src:
+      staticData === undefined
+        ? null
+        : itemImageUrl(staticData.version, itemId),
+    name:
+      staticData === undefined ? undefined : findItemName(staticData, itemId),
+  };
+}

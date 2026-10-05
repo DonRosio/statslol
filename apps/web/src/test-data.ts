@@ -1,8 +1,10 @@
 import type {
   MatchDetails,
+  MatchRanks,
   MatchParticipant,
   MatchSummary,
   PlayerProfile,
+  Rank,
   StaticData,
 } from '@statslol/shared';
 
@@ -85,6 +87,20 @@ export function matchSummary(
     ...fields,
   };
 }
+
+/** An ARAM game won with Wukong (Riot's internal name: MonkeyKing): a game of the overview. */
+export const ARAM_MATCH = matchSummary('KR_2', {
+  queueId: 450,
+  durationSeconds: 1105,
+  result: 'win',
+  championId: 62,
+  championName: 'MonkeyKing',
+  kills: 11,
+  deaths: 0,
+  assists: 4,
+  creepScore: 0,
+  position: null,
+});
 
 /** A third place in Arena with Wukong (Riot's internal name: MonkeyKing). */
 export const ARENA_MATCH = matchSummary('KR_2', {
@@ -176,8 +192,22 @@ export function classicDetails(id: string): MatchDetails {
     gold: 52_300,
     objectives:
       teamId === 100
-        ? { towers: 9, inhibitors: 1, dragons: 3, barons: 1, heralds: 0 }
-        : { towers: 2, inhibitors: 0, dragons: 1, barons: 0, heralds: 1 },
+        ? {
+            towers: 9,
+            inhibitors: 1,
+            dragons: 3,
+            barons: 1,
+            heralds: 0,
+            grubs: 3,
+          }
+        : {
+            towers: 2,
+            inhibitors: 0,
+            dragons: 1,
+            barons: 0,
+            heralds: 1,
+            grubs: 0,
+          },
     players: players
       .filter((one) => one.teamId === teamId)
       .map((one) => ({
@@ -248,5 +278,33 @@ export function arenaDetails(id: string): MatchDetails {
     startedAt: '2026-10-03T16:41:12.000Z',
     durationSeconds: 1105,
     teams,
+  };
+}
+
+/**
+ * The solo ranks of the players of classicDetails(): the player 1 (Hide on bush#KR1) is Diamond I,
+ * the players 2 to 5 Emerald II, 6 to 8 Master, the 9th has no rank, the 10th is Iron IV.
+ */
+export function classicRanks(): MatchRanks {
+  const rank = (tier: Rank['tier'], division: Rank['division']): Rank => ({
+    tier,
+    division,
+    leaguePoints: 59,
+    wins: 23,
+    losses: 26,
+  });
+  return {
+    ranks: {
+      '1': rank('DIAMOND', 'I'),
+      '2': rank('EMERALD', 'II'),
+      '3': rank('EMERALD', 'II'),
+      '4': rank('EMERALD', 'II'),
+      '5': rank('EMERALD', 'II'),
+      '6': rank('MASTER', null),
+      '7': rank('MASTER', null),
+      '8': rank('MASTER', null),
+      '9': null,
+      '10': rank('IRON', 'IV'),
+    },
   };
 }

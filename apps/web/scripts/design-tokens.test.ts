@@ -268,6 +268,17 @@ describe('contrast over the background image', () => {
     ) as unknown as Color;
   }
 
+  // The header and the tabs of a profile have no panel: their text lies on the glow itself.
+  it.each([
+    ['text', 'color-text'],
+    ['secondary text (the header of a profile)', 'color-soft'],
+    ['the other tabs', 'color-soft'],
+  ])('keeps %s readable straight on the glow', (_what, foreground) => {
+    expect(
+      contrast(color(foreground), color('image-glow')),
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+
   // The brightest part of the background, which is behind the header of a profile.
   const panel = () => glass('color-panel', color('image-glow'));
   const box = () => glass('color-box', panel());

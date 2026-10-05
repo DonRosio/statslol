@@ -2,6 +2,7 @@ import {
   ARENA_MATCH,
   classicDetails,
   classicPlayers,
+  classicRanks,
   LOADOUT,
   matchSummary,
   PLAYER_API_PATH,
@@ -29,6 +30,12 @@ test('finds a player from the home page, then shows their profile', async ({
   await expect(
     page.getByRole('heading', { level: 1, name: 'Hide on bush#KR1' }),
   ).toBeVisible();
+  // The tabs of the profile, the open one marked.
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Profile sections' })
+      .getByRole('link', { name: 'Overview' }),
+  ).toHaveAttribute('aria-current', 'page');
   await expect(page.getByText('Korea · Level 812')).toBeVisible();
   await expect(
     page.getByRole('region', { name: 'Ranked Solo/Duo' }),
@@ -40,15 +47,16 @@ test('finds a player from the home page, then shows their profile', async ({
   const matches = page.getByRole('listitem');
   await expect(matches).toHaveCount(2);
   await expect(matches.nth(0)).toContainText('Victory');
-  await expect(matches.nth(0)).toContainText('18 hours ago · 30:34');
-  await expect(matches.nth(1)).toContainText('3rd place');
+  await expect(matches.nth(0)).toContainText('18h ago · 30:34');
+  await expect(matches.nth(1)).toContainText('ARAM');
   // The champion is not written on the card: its image says who it is.
   await expect(
     matches.nth(1).getByRole('img', { name: 'Wukong' }),
   ).toBeVisible();
 
-  // The profile icon and the 2 champions, all displayed by the browser.
-  const images = page.locator('img');
+  // The profile icon and the 2 champions, all displayed by the browser (the icon of the
+  // position is the site's own image).
+  const images = page.locator('img[src^="https://ddragon"]');
   // The profile icon, and the 2 champions twice: in the summary, and in the matches.
   await expect(images).toHaveCount(5);
   for (const image of await images.all()) {
@@ -56,31 +64,52 @@ test('finds a player from the home page, then shows their profile', async ({
   }
 });
 
-test('loads the second page by itself, and older matches with "Show more"', async ({
+test('loads pages by itself, up to 5, and the next ones with "Show more"', async ({
   page,
   api,
 }) => {
-  knowPlayer(api, {
-    matches: [matchSummary('KR_5'), matchSummary('KR_4')],
-    nextStart: 2,
-  });
-  api.answer(`${PLAYER_API_PATH}/matches?start=2`, {
-    matches: [ARENA_MATCH],
-    nextStart: 4,
-  });
-  api.answer(`${PLAYER_API_PATH}/matches?start=4`, {
-    matches: [matchSummary('KR_1')],
-    nextStart: null,
-  });
+  // A long history: one game in each of 7 pages.
+  knowPlayer(api, { matches: [matchSummary('KR_7')], nextStart: 1 });
+  for (let index = 1; index < 7; index += 1) {
+    api.answer(`${PLAYER_API_PATH}/matches?start=${String(index)}`, {
+      matches: [matchSummary(`KR_${String(7 - index)}`)],
+      nextStart: index < 6 ? index + 1 : null,
+    });
+  }
 
   // Opened directly: the preview server answers the app for any page URL.
   await page.goto(PLAYER_PAGE_PATH);
-  // The second page comes without a click: the summary counts the last 20 games.
-  await expect(page.getByRole('listitem')).toHaveCount(3);
+  // Without a click: 5 pages (the summary counts the last 20 games, each page costs calls).
+  await expect(page.getByRole('listitem')).toHaveCount(5);
+  await page.getByRole('button', { name: 'Show more' }).click();
+  await expect(page.getByRole('listitem')).toHaveCount(6);
   await page.getByRole('button', { name: 'Show more' }).click();
 
-  await expect(page.getByRole('listitem')).toHaveCount(4);
+  await expect(page.getByRole('listitem')).toHaveCount(7);
   await expect(page.getByRole('button', { name: 'Show more' })).toHaveCount(0);
+});
+
+test('keeps the Arena games for their tab', async ({ page, api }) => {
+  knowPlayer(api, {
+    matches: [matchSummary('KR_3'), ARENA_MATCH],
+    nextStart: null,
+  });
+
+  await page.goto(PLAYER_PAGE_PATH);
+  // The overview has the other games only.
+  await expect(page.getByRole('listitem')).toHaveCount(1);
+  await expect(page.getByText('3rd place')).toHaveCount(0);
+
+  const bar = page.getByRole('navigation', { name: 'Profile sections' });
+  await bar.getByRole('link', { name: 'Arena' }).click();
+
+  await expect(page).toHaveURL(`${PLAYER_PAGE_PATH}/arena`);
+  await expect(page.getByRole('listitem')).toHaveCount(1);
+  await expect(page.getByText('3rd place')).toBeVisible();
+  await expect(bar.getByRole('link', { name: 'Arena' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
 });
 
 test('shows names and empty squares when Data Dragon is unreachable', async ({
@@ -100,7 +129,7 @@ test('shows names and empty squares when Data Dragon is unreachable', async ({
   // The profile icon and the 2 champions: the browser asks for each image once, even if it
   // is shown twice (summary and matches).
   await expect.poll(() => failedImages).toBe(3);
-  await expect(page.locator('img')).toHaveCount(0);
+  await expect(page.locator('img[src^="https://ddragon"]')).toHaveCount(0);
   // The empty squares keep the names of the champions.
   await expect(
     page.getByRole('listitem').nth(0).getByRole('img', { name: 'Sylas' }),
@@ -173,7 +202,7 @@ test('shows the spells, runes, items and players of a match, and opens a player 
       .getByRole('link', { name: 'Rival 9' }),
   ).toBeVisible();
   // The champion, 2 spells, 2 runes, 2 items and 10 players: all displayed by the browser.
-  const images = match.locator('img');
+  const images = match.locator('img[src^="https://ddragon"]');
   await expect(images).toHaveCount(17);
   for (const image of await images.all()) {
     await expect(image).toHaveJSProperty('naturalWidth', 1);
@@ -198,6 +227,7 @@ test('opens the details of a match with the arrow, and closes them', async ({
     nextStart: null,
   });
   api.answer('/api/v1/matches/kr/KR_3', classicDetails('KR_3'));
+  api.answer('/api/v1/matches/kr/KR_3/ranks', classicRanks());
 
   await page.goto(PLAYER_PAGE_PATH);
   const match = page.getByRole('listitem');
@@ -212,12 +242,33 @@ test('opens the details of a match with the arrow, and closes them', async ({
     match.getByRole('region', { name: 'Defeat, Red team' }),
   ).toBeVisible();
   // The images of the 2 tables (champions and items) are displayed by the browser.
-  for (const image of await match.getByRole('region').locator('img').all()) {
+  const tables = match.getByRole('region');
+  for (const image of await tables
+    .locator('img[src^="https://ddragon"]')
+    .all()) {
     await expect(image).toHaveJSProperty('naturalWidth', 1);
   }
+  // The ranks come after the table, with the site's own emblems (real images, not 1 pixel).
+  await expect(blue).toContainText('DIAMOND 1');
+  const emblems = blue.locator('img[alt=""]:not([src^="https://ddragon"])');
+  await expect(emblems.first()).toBeVisible();
+  // Displayed by the browser: wider than the 1 pixel of the fake champion images.
+  await expect(emblems.first()).not.toHaveJSProperty('naturalWidth', 0);
+  await expect(emblems.first()).not.toHaveJSProperty('naturalWidth', 1);
 
   await match
     .getByRole('button', { name: 'Hide the details of the match' })
     .click();
   await expect(blue).toHaveCount(0);
+});
+
+test('shows the "not found" page for an address under a profile that is no tab', async ({
+  page,
+}) => {
+  // No request is sent to the API (the fixture checks it).
+  await page.goto(`${PLAYER_PAGE_PATH}/no-such-tab`);
+
+  await expect(
+    page.getByRole('heading', { name: 'Page not found' }),
+  ).toBeVisible();
 });

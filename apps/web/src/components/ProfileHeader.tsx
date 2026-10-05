@@ -37,7 +37,7 @@ export function ProfileHeader({ player, profile }: ProfileHeaderProps) {
         className={styles.icon}
         fallback={<span className={styles.icon} />}
       />
-      <div>
+      <div className={styles.text}>
         {/* No space before the tag: the heading reads "Hide on bush#KR1", as in the game. */}
         <h1 className={styles.riotId}>
           {riotId.gameName}

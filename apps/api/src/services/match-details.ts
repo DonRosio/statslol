@@ -106,5 +106,6 @@ function objectivesOf(
     dragons: objectives.dragon?.kills ?? 0,
     barons: objectives.baron?.kills ?? 0,
     heralds: objectives.riftHerald?.kills ?? 0,
+    grubs: objectives.horde?.kills ?? 0,
   };
 }

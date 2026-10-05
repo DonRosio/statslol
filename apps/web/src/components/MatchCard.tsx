@@ -7,16 +7,7 @@ import type {
 import { useId, useState } from 'react';
 import { Link } from 'react-router';
 
-import {
-  championImageUrl,
-  findChampion,
-  findItemName,
-  findRune,
-  findSpell,
-  itemImageUrl,
-  runeImageUrl,
-  spellImageUrl,
-} from '../data-dragon.ts';
+import { itemThing, runeThing, spellThing } from '../data-dragon.ts';
 import {
   formatDateTime,
   formatDuration,
@@ -28,7 +19,8 @@ import {
 } from '../format.ts';
 import { playerPath } from '../player-path.ts';
 import { queueName } from '../queues.ts';
-import { GameImage } from './GameImage.tsx';
+import { ChampionIcon } from './ChampionIcon.tsx';
+import { GameSlot } from './GameSlot.tsx';
 import { MatchDetails } from './MatchDetails.tsx';
 import { PositionIcon } from './PositionIcon.tsx';
 import styles from './MatchCard.module.css';
@@ -36,6 +28,9 @@ import styles from './MatchCard.module.css';
 const CHAMPION_IMAGE_SIZE = 46;
 // Spells, runes and items: 2 rows of them are about as high as the champion's image.
 const SLOT_SIZE = 22;
+// The main rune is bigger than the tree of the secondary ones; both fill the height of 2 slots.
+const KEYSTONE_SIZE = 26;
+const SECONDARY_TREE_SIZE = 16;
 const TEAMMATE_IMAGE_SIZE = 20;
 
 /**
@@ -49,27 +44,37 @@ interface MatchCardProps {
   /** The player whose page this is: the players of the match are on the same server. */
   readonly player: PlayerParams;
   readonly staticData: StaticData | undefined;
-  /** When the matches were loaded: "2 hours ago" is counted from then. */
+  /** When the matches were loaded: "2h ago" is counted from then. */
   readonly now: number;
 }
 
 /** One game of the player: result, champion, spells, runes, items, and the other players. */
 export function MatchCard({ match, player, staticData, now }: MatchCardProps) {
-  const champion =
-    staticData === undefined
-      ? undefined
-      : findChampion(staticData, match.championId);
   // What a support is judged on is the vision, not the minions.
   const isSupport = match.position === 'UTILITY';
   // The details are asked to the API when they are opened for the first time.
   const [open, setOpen] = useState(false);
   const detailsId = useId();
+  // A win or a loss is told by the color of the card; a place (Arena) or a remake is written.
+  const resultIsWritten = match.placement !== null || match.result === 'remake';
 
   return (
     <li className={styles.match} data-result={match.result}>
       <div className={styles.info}>
-        <p className={styles.result}>{formatResult(match)}</p>
-        <p className={styles.muted}>{queueName(match.queueId)}</p>
+        <p className={styles.result}>
+          {/* The color is not enough for screen readers: they get the word. */}
+          {!resultIsWritten && (
+            <>
+              <span className="visually-hidden">
+                {formatResult(match)}
+              </span>{' '}
+            </>
+          )}
+          <span>{queueName(match.queueId)}</span>
+        </p>
+        {resultIsWritten && (
+          <p className={styles.muted}>{formatResult(match)}</p>
+        )}
         <p className={styles.muted}>
           <time
             dateTime={match.startedAt}
@@ -83,23 +88,11 @@ export function MatchCard({ match, player, staticData, now }: MatchCardProps) {
       </div>
 
       <div className={styles.champion}>
-        <GameImage
-          src={
-            staticData === undefined || champion === undefined
-              ? null
-              : championImageUrl(staticData.version, champion)
-          }
+        <ChampionIcon
+          championId={match.championId}
+          championName={match.championName}
+          staticData={staticData}
           size={CHAMPION_IMAGE_SIZE}
-          className={styles.championImage}
-          // The name of the champion is not written on the card: the image says it.
-          alt={champion?.name ?? match.championName}
-          fallback={
-            <span
-              className={styles.championImage}
-              role="img"
-              aria-label={champion?.name ?? match.championName}
-            />
-          }
         />
         <div className={styles.level}>
           <span className={styles.muted}>Lvl. {match.level}</span>
@@ -128,11 +121,10 @@ export function MatchCard({ match, player, staticData, now }: MatchCardProps) {
 
       <div className={styles.cluster}>
         <Spells spellIds={match.spellIds} staticData={staticData} />
-        {match.runes !== null && (
-          <Runes runes={match.runes} staticData={staticData} />
-        )}
+        <Runes runes={match.runes} staticData={staticData} />
         <Items itemIds={match.itemIds} staticData={staticData} />
       </div>
+
       <Players match={match} player={player} staticData={staticData} />
 
       <button
@@ -172,35 +164,17 @@ export function MatchCard({ match, player, staticData, now }: MatchCardProps) {
   );
 }
 
-interface SlotImageProps {
-  /** URL of the image; null when it cannot be known (no static data). */
-  readonly src: string | null;
-  /** What the image shows; undefined when Data Dragon does not say. */
-  readonly name: string | undefined;
-}
-
-/** The image of a spell, a rune or an item: a square of the same size, empty if it is missing. */
-function SlotImage({ src, name }: SlotImageProps) {
+/** Two empty squares, where a mode has no spells or no runes: the items stay in line. */
+function EmptyPair() {
   return (
-    <GameImage
-      src={src}
-      size={SLOT_SIZE}
-      className={styles.slot}
-      alt={name}
-      fallback={
-        <span
-          className={styles.slot}
-          // The name stays for screen readers and for the mouse, whatever the image.
-          role={name === undefined ? undefined : 'img'}
-          aria-label={name}
-          title={name}
-        />
-      }
-    />
+    <div className={styles.pair} aria-hidden="true">
+      <span className={styles.slot} />
+      <span className={styles.slot} />
+    </div>
   );
 }
 
-/** The 2 summoner spells; none in modes without them. */
+/** The 2 summoner spells. */
 function Spells({
   spellIds,
   staticData,
@@ -208,49 +182,46 @@ function Spells({
   readonly spellIds: MatchSummary['spellIds'];
   readonly staticData: StaticData | undefined;
 }) {
-  if (spellIds.length === 0) return null;
+  if (spellIds.length === 0) return <EmptyPair />;
   return (
     <div role="group" aria-label="Summoner spells" className={styles.pair}>
-      {spellIds.map((spellId) => {
-        const spell =
-          staticData === undefined ? undefined : findSpell(staticData, spellId);
-        return (
-          <SlotImage
-            key={spellId}
-            src={
-              staticData === undefined || spell === undefined
-                ? null
-                : spellImageUrl(staticData.version, spell)
-            }
-            name={spell?.name}
-          />
-        );
-      })}
+      {spellIds.map((spellId) => (
+        <GameSlot
+          key={spellId}
+          thing={spellThing(staticData, spellId)}
+          size={SLOT_SIZE}
+          className={styles.slot}
+        />
+      ))}
     </div>
   );
 }
 
-/** The keystone and the secondary tree of runes. */
+/**
+ * The keystone and the secondary tree of runes, with no background (the images have their
+ * own shape). In modes without runes (Arena) the room stays, empty, so the items stay in line.
+ */
 function Runes({
   runes,
   staticData,
 }: {
-  readonly runes: NonNullable<MatchSummary['runes']>;
+  readonly runes: MatchSummary['runes'];
   readonly staticData: StaticData | undefined;
 }) {
+  if (runes === null)
+    return <div className={styles.runes} aria-hidden="true" />;
   return (
-    <div role="group" aria-label="Runes" className={styles.pair}>
-      {[runes.keystoneId, runes.secondaryStyleId].map((runeId) => {
-        const rune =
-          staticData === undefined ? undefined : findRune(staticData, runeId);
-        return (
-          <SlotImage
-            key={runeId}
-            src={rune === undefined ? null : runeImageUrl(rune)}
-            name={rune?.name}
-          />
-        );
-      })}
+    <div role="group" aria-label="Runes" className={styles.runes}>
+      <GameSlot
+        thing={runeThing(staticData, runes.keystoneId)}
+        size={KEYSTONE_SIZE}
+        className={styles.keystone}
+      />
+      <GameSlot
+        thing={runeThing(staticData, runes.secondaryStyleId)}
+        size={SECONDARY_TREE_SIZE}
+        className={styles.secondary}
+      />
     </div>
   );
 }
@@ -272,19 +243,11 @@ function Items({
           return <span key={slot} className={styles.slot} aria-hidden="true" />;
         }
         return (
-          <SlotImage
+          <GameSlot
             key={slot}
-            // The file is named by the ID: the image is known even if the name is not.
-            src={
-              staticData === undefined
-                ? null
-                : itemImageUrl(staticData.version, itemId)
-            }
-            name={
-              staticData === undefined
-                ? undefined
-                : findItemName(staticData, itemId)
-            }
+            thing={itemThing(staticData, itemId)}
+            size={SLOT_SIZE}
+            className={styles.slot}
           />
         );
       })}
@@ -318,7 +281,8 @@ function Players({
   const teamIds = [...new Set(shown.map(({ teamId }) => teamId))].sort(
     (a, b) => a - b,
   );
-  if (teamIds.length === 0) return null;
+  // The block keeps its width without players, so that the other blocks stay in line.
+  if (teamIds.length === 0) return <div className={styles.players} />;
 
   return (
     <div className={styles.players}>
@@ -335,10 +299,10 @@ function Players({
         >
           {shown
             .filter((participant) => participant.teamId === teamId)
-            .map((participant, index) => (
+            .map((participant) => (
               <Teammate
-                // Riot's order is stable: two players can share a name, never a place.
-                key={index}
+                // Each player has a place of his own in the match.
+                key={participant.participantId}
                 participant={participant}
                 region={player.region}
                 staticData={staticData}
@@ -359,25 +323,17 @@ function Teammate({
   readonly region: PlayerParams['region'];
   readonly staticData: StaticData | undefined;
 }) {
-  const champion =
-    staticData === undefined
-      ? undefined
-      : findChampion(staticData, participant.championId);
   const { riotId } = participant;
   // The name tells who this is: the icon is only the champion they played.
   const name = riotId === null ? participant.championName : riotId.gameName;
   const fullName =
     riotId === null ? name : `${riotId.gameName}#${riotId.tagLine}`;
   const icon = (
-    <GameImage
-      src={
-        staticData === undefined || champion === undefined
-          ? null
-          : championImageUrl(staticData.version, champion)
-      }
+    <ChampionIcon
+      championId={participant.championId}
+      championName={participant.championName}
+      staticData={staticData}
       size={TEAMMATE_IMAGE_SIZE}
-      className={styles.teammateImage}
-      fallback={<span className={styles.teammateImage} />}
     />
   );
   // The others are links to their page; the player whose page this is, and a player Riot

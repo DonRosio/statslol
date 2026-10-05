@@ -31,8 +31,14 @@ describe('profile page, when a player cannot be shown', () => {
 
     renderPage(PLAYER_PAGE_PATH);
 
+    // The first render of the file: the page and its images load now, which can take a while
+    // on a busy machine.
     expect(
-      await screen.findByRole('heading', { name: 'Player not found' }),
+      await screen.findByRole(
+        'heading',
+        { name: 'Player not found' },
+        { timeout: 5000 },
+      ),
     ).toBeDefined();
     expect(
       screen.getByText(/^No League of Legends player has the Riot ID/)
