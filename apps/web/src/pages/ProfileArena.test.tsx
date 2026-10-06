@@ -71,6 +71,7 @@ describe('Arena games', () => {
     ).toEqual([
       ['Overview', null],
       ['Champions', null],
+      ['Mastery', null],
       ['Arena', 'page'],
     ]);
   });

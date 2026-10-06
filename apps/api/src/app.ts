@@ -26,6 +26,7 @@ import { matchRanksRoutes } from './routes/match-ranks.ts';
 import { playerRoutes } from './routes/players.ts';
 import { staticDataRoutes } from './routes/static-data.ts';
 import { createChampionStatsService } from './services/champion-stats.ts';
+import { createMasteryService } from './services/mastery.ts';
 import { createMatchHistoryService } from './services/match-history.ts';
 import { createMatchLoader } from './services/match-loader.ts';
 import { createSeasonSyncService } from './services/season-sync.ts';
@@ -165,6 +166,7 @@ export function buildApp(
       store: matchStore,
       keyGeneration: config.riotKeyGeneration,
     }),
+    mastery: createMasteryService({ riot: cachedRiot }),
     seasonSync: createSeasonSyncService({
       riot: cachedRiot,
       matches,

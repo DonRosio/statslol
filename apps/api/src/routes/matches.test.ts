@@ -36,6 +36,9 @@ function setUp(
     getLeagueEntriesByPuuid: vi.fn<RiotClient['getLeagueEntriesByPuuid']>(() =>
       Promise.resolve([]),
     ),
+    getChampionMasteriesByPuuid: vi.fn<
+      RiotClient['getChampionMasteriesByPuuid']
+    >(() => Promise.resolve([])),
     getMatchIdsByPuuid: vi.fn<RiotClient['getMatchIdsByPuuid']>(
       (_platform, _puuid, { start, count }) =>
         Promise.resolve([...byId.keys()].slice(start, start + count)),

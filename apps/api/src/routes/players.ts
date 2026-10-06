@@ -1,6 +1,7 @@
 import {
   championStatsSchema,
   matchHistorySchema,
+  playerMasterySchema,
   playerParamsSchema,
   playerProfileSchema,
   seasonQuerySchema,
@@ -14,6 +15,7 @@ import type { CachedRiotClient } from '../cache/riot-client.ts';
 import { HttpError } from '../errors.ts';
 import type { SeasonSyncService } from '../services/season-sync.ts';
 import type { ChampionStatsService } from '../services/champion-stats.ts';
+import type { MasteryService } from '../services/mastery.ts';
 import type { MatchHistoryService } from '../services/match-history.ts';
 import { getPlayerProfile } from '../services/player-profile.ts';
 import { refreshPlayer } from '../services/refresh.ts';
@@ -23,6 +25,7 @@ export interface PlayerRoutesOptions {
   readonly riot: CachedRiotClient;
   readonly matchHistory: MatchHistoryService;
   readonly championStats: ChampionStatsService;
+  readonly mastery: MasteryService;
   readonly seasonSync: SeasonSyncService;
   readonly cache: Cache;
 }
@@ -34,7 +37,7 @@ const matchHistoryQuerySchema = z.object({
 
 export const playerRoutes: FastifyPluginCallback<PlayerRoutesOptions> = (
   app,
-  { riot, matchHistory, championStats, seasonSync, cache },
+  { riot, matchHistory, championStats, seasonSync, mastery, cache },
   done,
 ) => {
   const routes = app.withTypeProvider<ZodTypeProvider>();
@@ -88,6 +91,30 @@ export const playerRoutes: FastifyPluginCallback<PlayerRoutesOptions> = (
         throw new HttpError(404, 'No player with this Riot ID');
       }
       return history;
+    },
+  );
+
+  routes.get(
+    '/players/:region/:name/:tag/mastery',
+    {
+      schema: {
+        params: playerParamsSchema,
+        response: { 200: playerMasterySchema },
+      },
+      // One call to Riot, kept 10 minutes in the cache.
+      config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
+    },
+    async (request) => {
+      const { region, name, tag } = request.params;
+      const result = await mastery.getMastery({
+        region,
+        gameName: name,
+        tagLine: tag,
+      });
+      if (result === null) {
+        throw new HttpError(404, 'No player with this Riot ID');
+      }
+      return result;
     },
   );
 

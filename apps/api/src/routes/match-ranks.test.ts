@@ -23,6 +23,9 @@ function setUp() {
     getLeagueEntriesByPuuid: vi.fn<RiotClient['getLeagueEntriesByPuuid']>(() =>
       Promise.resolve([SOLO]),
     ),
+    getChampionMasteriesByPuuid: vi.fn<
+      RiotClient['getChampionMasteriesByPuuid']
+    >(() => Promise.resolve([])),
     getMatchIdsByPuuid: vi.fn<RiotClient['getMatchIdsByPuuid']>(),
     getMatch: vi.fn<RiotClient['getMatch']>((_platform, id) =>
       Promise.resolve(id === 'KR_1' ? fakeMatch('KR_1') : null),

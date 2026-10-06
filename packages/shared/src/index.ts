@@ -33,6 +33,12 @@ export {
   type MatchSummary,
   type MatchTeam,
 } from './match.ts';
+export {
+  championMasterySchema,
+  playerMasterySchema,
+  type ChampionMastery,
+  type PlayerMastery,
+} from './mastery.ts';
 export { playerParamsSchema, type PlayerParams } from './player-params.ts';
 export {
   divisionSchema,

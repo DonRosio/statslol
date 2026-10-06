@@ -34,6 +34,7 @@ test('says when no player has the Riot ID, with the search form ready to correct
   const notFound = { statusCode: 404, message: 'No player with this Riot ID' };
   api.answer(PLAYER_API_PATH, notFound, { status: 404 });
   api.answer(`${PLAYER_API_PATH}/matches?start=0`, notFound, { status: 404 });
+  api.answer(`${PLAYER_API_PATH}/mastery`, notFound, { status: 404 });
   api.answer('/api/v1/static-data', undefined, { status: 404 });
 
   await page.goto(PLAYER_PAGE_PATH);

@@ -5,6 +5,7 @@ import {
   type MatchParticipant,
   type MatchRanks,
   type MatchSummary,
+  type PlayerMastery,
   type PlayerProfile,
   type Rank,
   type SeasonSync,
@@ -80,6 +81,38 @@ export const CHAMPION_RECORDS: ChampionRecord[] = [
     placementSum: 7,
   }),
 ];
+
+/** The mastery of the player: Sylas (level 32), Wukong, and a champion Data Dragon does not know. */
+export const MASTERY: PlayerMastery = {
+  score: 52,
+  totalPoints: 400_000,
+  champions: [
+    {
+      championId: 517,
+      level: 32,
+      points: 324_704,
+      lastPlayedAt: '2026-10-03T16:41:12.000Z',
+      pointsSinceLastLevel: 7104,
+      pointsUntilNextLevel: 3896,
+    },
+    {
+      championId: 62,
+      level: 12,
+      points: 70_000,
+      lastPlayedAt: '2026-09-20T10:00:00.000Z',
+      pointsSinceLastLevel: 100,
+      pointsUntilNextLevel: 900,
+    },
+    {
+      championId: 9999,
+      level: 8,
+      points: 5296,
+      lastPlayedAt: null,
+      pointsSinceLastLevel: 0,
+      pointsUntilNextLevel: 0,
+    },
+  ],
+};
 
 /** The season the Champions tab opens on. */
 export const CURRENT_SEASON = currentSeason(new Date());

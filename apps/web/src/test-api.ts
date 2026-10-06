@@ -5,6 +5,7 @@ import {
   ARAM_MATCH,
   CHAMPION_RECORDS,
   CURRENT_SEASON,
+  MASTERY,
   SYNC_DONE,
   arenaDetails,
   ARENA_MATCH,
@@ -59,6 +60,7 @@ export function mockPlayerApi({
       records: CHAMPION_RECORDS,
     }),
   seasonSync = () => HttpResponse.json(SYNC_DONE),
+  mastery = () => HttpResponse.json(MASTERY),
 }: {
   profile?: HttpResponseResolver;
   matches?: HttpResponseResolver;
@@ -69,10 +71,12 @@ export function mockPlayerApi({
   champions?: HttpResponseResolver;
   /** Answers both the GET (progress) and the POST (start) of the season loading. */
   seasonSync?: HttpResponseResolver;
+  mastery?: HttpResponseResolver;
 } = {}) {
   server.use(
     http.get('/api/v1/players/:region/:name/:tag', profile),
     http.get('/api/v1/players/:region/:name/:tag/matches', matches),
+    http.get('/api/v1/players/:region/:name/:tag/mastery', mastery),
     http.get('/api/v1/players/:region/:name/:tag/champions', champions),
     http.get('/api/v1/players/:region/:name/:tag/champions/sync', seasonSync),
     http.post('/api/v1/players/:region/:name/:tag/champions/sync', seasonSync),

@@ -62,6 +62,9 @@ function fakeRiot() {
     getLeagueEntriesByPuuid: vi.fn<RiotClient['getLeagueEntriesByPuuid']>(() =>
       Promise.resolve([SOLO, FLEX, PREMADE]),
     ),
+    getChampionMasteriesByPuuid: vi.fn<
+      RiotClient['getChampionMasteriesByPuuid']
+    >(() => Promise.resolve([])),
     getMatchIdsByPuuid: vi.fn<RiotClient['getMatchIdsByPuuid']>(() =>
       Promise.resolve([]),
     ),

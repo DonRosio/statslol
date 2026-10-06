@@ -5,6 +5,7 @@ import { HomePage } from './pages/HomePage.tsx';
 import { NotFoundPage } from './pages/NotFoundPage.tsx';
 import { ProfileArena } from './pages/ProfileArena.tsx';
 import { ProfileChampions } from './pages/ProfileChampions.tsx';
+import { ProfileMastery } from './pages/ProfileMastery.tsx';
 import { ProfileOverview } from './pages/ProfileOverview.tsx';
 import { ProfilePage } from './pages/ProfilePage.tsx';
 import { PLAYER_PATH } from './player-path.ts';
@@ -23,6 +24,7 @@ export const routes: RouteObject[] = [
         children: [
           { index: true, Component: ProfileOverview },
           { path: 'champions', Component: ProfileChampions },
+          { path: 'mastery', Component: ProfileMastery },
           { path: 'arena', Component: ProfileArena },
         ],
       },

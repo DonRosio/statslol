@@ -2,6 +2,7 @@ import {
   championStatsSchema,
   seasonSyncSchema,
   matchHistorySchema,
+  playerMasterySchema,
   playerProfileSchema,
   type MatchHistory,
   type MatchSummary,
@@ -61,6 +62,20 @@ export function matchHistoryQuery(player: PlayerParams) {
     getNextPageParam: (lastPage) => lastPage.nextStart,
     // The API keeps the list of the latest matches for 2 minutes.
     staleTime: 2 * 60 * 1000,
+  });
+}
+
+/**
+ * GET /api/v1/players/:region/:name/:tag/mastery: the champion mastery of a player, every
+ * champion played with its level and points, the most points first.
+ */
+export function masteryQuery(player: PlayerParams) {
+  return queryOptions({
+    queryKey: [...playerKey(player), 'mastery'],
+    queryFn: ({ signal }) =>
+      getJson(`${playerApiPath(player)}/mastery`, playerMasterySchema, signal),
+    // The API keeps it for 10 minutes: asking again sooner would get the same answer.
+    staleTime: 10 * 60 * 1000,
   });
 }
 

@@ -4,6 +4,7 @@ import {
   ARAM_MATCH,
   CHAMPION_RECORDS,
   CURRENT_SEASON,
+  MASTERY,
   SYNC_DONE,
   matchSummary,
   PLAYER_API_PATH,
@@ -37,5 +38,6 @@ export function knowPlayer(
       method: 'POST',
     },
   );
+  api.answer(`${PLAYER_API_PATH}/mastery`, MASTERY);
   api.answer('/api/v1/static-data', STATIC_DATA);
 }

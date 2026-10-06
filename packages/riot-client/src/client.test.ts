@@ -338,6 +338,72 @@ describe('getLeagueEntriesByPuuid', () => {
   });
 });
 
+describe('getChampionMasteriesByPuuid', () => {
+  const MASTERY_URL =
+    'https://euw1.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-puuid/:puuid';
+
+  const SYLAS = {
+    championId: 517,
+    championLevel: 32,
+    championPoints: 324_704,
+    lastPlayTime: 1_790_878_271_000,
+    championPointsSinceLastLevel: 7104,
+    championPointsUntilNextLevel: 3896,
+  };
+
+  it('returns the mastery of each champion, without the fields it does not keep', async () => {
+    server.use(
+      http.get(MASTERY_URL, () =>
+        HttpResponse.json([
+          {
+            ...SYLAS,
+            puuid: ACCOUNT.puuid,
+            tokensEarned: 47,
+            milestoneGrades: ['D+', 'A'],
+            nextSeasonMilestone: { rewardMarks: 2 },
+          },
+        ]),
+      ),
+    );
+
+    await expect(
+      client.getChampionMasteriesByPuuid('euw1', ACCOUNT.puuid),
+    ).resolves.toEqual([SYLAS]);
+  });
+
+  it('returns an empty list for a player with no mastery', async () => {
+    server.use(http.get(MASTERY_URL, () => HttpResponse.json([])));
+
+    await expect(
+      client.getChampionMasteriesByPuuid('euw1', ACCOUNT.puuid),
+    ).resolves.toEqual([]);
+  });
+
+  it('accepts points left for the next level that are zero or negative', async () => {
+    server.use(
+      http.get(MASTERY_URL, () =>
+        HttpResponse.json([{ ...SYLAS, championPointsUntilNextLevel: -12 }]),
+      ),
+    );
+
+    await expect(
+      client.getChampionMasteriesByPuuid('euw1', ACCOUNT.puuid),
+    ).resolves.toHaveLength(1);
+  });
+
+  it('reports a mastery in an unexpected format', async () => {
+    server.use(
+      http.get(MASTERY_URL, () =>
+        HttpResponse.json([{ ...SYLAS, championPoints: 'a lot' }]),
+      ),
+    );
+
+    await expect(
+      client.getChampionMasteriesByPuuid('euw1', ACCOUNT.puuid),
+    ).rejects.toMatchObject({ kind: 'unexpected-response' });
+  });
+});
+
 describe('rate limits', () => {
   it('follows the limits announced by Riot, and refuses a call that would wait too long', async () => {
     let calls = 0;

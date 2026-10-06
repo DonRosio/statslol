@@ -32,6 +32,15 @@ const SOLO: RiotLeagueEntry = {
   losses: 250,
 };
 
+const MASTERY = {
+  championId: 517,
+  championLevel: 32,
+  championPoints: 324_704,
+  lastPlayTime: 1_790_878_271_000,
+  championPointsSinceLastLevel: 7104,
+  championPointsUntilNextLevel: 3896,
+};
+
 function setUp({ keyGeneration = 1, store = new MemoryStore() } = {}) {
   const riot = {
     getAccountByRiotId: vi.fn<RiotClient['getAccountByRiotId']>(() =>
@@ -43,6 +52,9 @@ function setUp({ keyGeneration = 1, store = new MemoryStore() } = {}) {
     getLeagueEntriesByPuuid: vi.fn<RiotClient['getLeagueEntriesByPuuid']>(() =>
       Promise.resolve([SOLO]),
     ),
+    getChampionMasteriesByPuuid: vi.fn<
+      RiotClient['getChampionMasteriesByPuuid']
+    >(() => Promise.resolve([MASTERY])),
     getMatchIdsByPuuid: vi.fn<RiotClient['getMatchIdsByPuuid']>(() =>
       Promise.resolve(['EUW1_2', 'EUW1_1']),
     ),
@@ -120,6 +132,21 @@ describe('cachedRiotClient', () => {
     );
   });
 
+  it('keeps the mastery for 10 minutes, separately for each platform', async () => {
+    const { riot, store, cached } = setUp();
+
+    for (const platform of ['euw1', 'euw1', 'kr'] as const) {
+      expect(await cached.getChampionMasteriesByPuuid(platform, PUUID)).toEqual(
+        [MASTERY],
+      );
+    }
+
+    expect(riot.getChampionMasteriesByPuuid).toHaveBeenCalledTimes(2);
+    expect(store.entries.get(`riot:1:mastery:euw1:${PUUID}`)?.ttlSeconds).toBe(
+      600,
+    );
+  });
+
   it('answers what Riot answered, read back from the cache', async () => {
     const { cached } = setUp();
 
@@ -181,6 +208,7 @@ describe('cachedRiotClient', () => {
       await cached.getAccountByRiotId(riotId);
       await cached.getSummonerByPuuid('euw1', PUUID);
       await cached.getLeagueEntriesByPuuid('euw1', PUUID);
+      await cached.getChampionMasteriesByPuuid('euw1', PUUID);
       await cached.getMatchIdsByPuuid('euw1', PUUID, FIRST_PAGE);
     };
     await lookUp();
@@ -193,6 +221,7 @@ describe('cachedRiotClient', () => {
       riot.getAccountByRiotId,
       riot.getSummonerByPuuid,
       riot.getLeagueEntriesByPuuid,
+      riot.getChampionMasteriesByPuuid,
       riot.getMatchIdsByPuuid,
     ]) {
       expect(method).toHaveBeenCalledTimes(2);

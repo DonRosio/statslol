@@ -57,8 +57,9 @@ test('finds a player from the home page, then shows their profile', async ({
   // The profile icon and the 2 champions, all displayed by the browser (the icon of the
   // position is the site's own image).
   const images = page.locator('img[src^="https://ddragon"]');
-  // The profile icon, and the 2 champions twice: in the summary, and in the matches.
-  await expect(images).toHaveCount(5);
+  // The profile icon, and the 2 champions three times: in the top mastery, in the summary,
+  // and in the matches.
+  await expect(images).toHaveCount(7);
   for (const image of await images.all()) {
     await expect(image).toHaveJSProperty('naturalWidth', 1);
   }
@@ -147,23 +148,54 @@ test('has a Champions tab: the champions of the season, which the position narro
   );
 });
 
+test('has a Mastery tab: a card for each champion by points, with the top 3 in the overview', async ({
+  page,
+  api,
+}) => {
+  knowPlayer(api);
+
+  await page.goto(PLAYER_PAGE_PATH);
+  const top = page.getByRole('region', { name: 'Top mastery' });
+  await expect(top.getByRole('group')).toHaveCount(3);
+  await expect(top.getByRole('group').first()).toContainText('324,704 points');
+
+  await top.getByRole('link', { name: 'All champions' }).click();
+
+  await expect(page).toHaveURL(`${PLAYER_PAGE_PATH}/mastery`);
+  // A card for each of the 3 champions, with the season of the first one.
+  const cards = page
+    .getByRole('list', { name: 'Champion mastery' })
+    .getByRole('listitem');
+  await expect(cards).toHaveCount(3);
+  await expect(cards.first()).toContainText('Sylas');
+  await expect(cards.first()).toContainText('324,704');
+  await expect(cards.first()).toContainText('Season 16 - 4 games - 3.33 KDA');
+  await expect(cards.first()).toContainText('Winrate : 50% - 2W/2L');
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Profile sections' })
+      .getByRole('link', { name: 'Mastery' }),
+  ).toHaveAttribute('aria-current', 'page');
+});
+
 test('shows names and empty squares when Data Dragon is unreachable', async ({
   page,
   api,
 }) => {
   knowPlayer(api);
-  let failedImages = 0;
+  // The images asked for (each one once: an image that fails to load is asked for again when
+  // another place of the page shows it, so the requests are not counted, the images are).
+  const failedImages = new Set<string>();
   // Registered after the fixture's route: it takes precedence.
   await page.route('https://ddragon.leagueoflegends.com/**', (route) => {
-    failedImages += 1;
+    failedImages.add(route.request().url());
     return route.abort('connectionrefused');
   });
 
   await page.goto(PLAYER_PAGE_PATH);
 
-  // The profile icon and the 2 champions: the browser asks for each image once, even if it
-  // is shown twice (summary and matches).
-  await expect.poll(() => failedImages).toBe(3);
+  // The profile icon and the 2 champions, shown in the top mastery, the summary and the matches.
+  await expect.poll(() => failedImages.size).toBe(3);
   await expect(page.locator('img[src^="https://ddragon"]')).toHaveCount(0);
   // The empty squares keep the names of the champions.
   await expect(
@@ -220,6 +252,7 @@ test('shows the spells, runes, items and players of a match, and opens a player 
     riotId: { gameName: 'Ally 1', tagLine: 'KR1' },
   });
   api.answer(`${ally}/matches?start=0`, { matches: [], nextStart: null });
+  api.answer(`${ally}/mastery`, { score: 0, totalPoints: 0, champions: [] });
 
   await page.goto(PLAYER_PAGE_PATH);
 

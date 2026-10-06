@@ -86,6 +86,20 @@ export const riotLeagueEntrySchema = z.object({
   losses: z.number().int().nonnegative(),
 });
 
+// What a player did with a champion over the years: the level and the points (the level has
+// no upper bound any more: 30 and more), when it was last played (ms since 1970), and where
+// the player stands in the current level. Riot sends more (marks, tokens, grades...): not
+// kept. The points left for the next level are not always positive (a level that is
+// reached with points to spare), so they only have to be whole numbers.
+export const riotChampionMasterySchema = z.object({
+  championId: z.number().int(),
+  championLevel: z.number().int().nonnegative(),
+  championPoints: z.number().int().nonnegative(),
+  lastPlayTime: z.number().int().nonnegative(),
+  championPointsSinceLastLevel: z.number().int(),
+  championPointsUntilNextLevel: z.number().int(),
+});
+
 // Match IDs end up in URLs: the platform, then a number, e.g. "EUW1_7123456789".
 export const riotMatchIdSchema = z.string().regex(/^[A-Z0-9]+_\d+$/);
 
@@ -205,6 +219,7 @@ export type RiotSummoner = Readonly<z.output<typeof riotSummonerSchema>>;
 export type RiotLeagueEntry = Readonly<z.output<typeof riotLeagueEntrySchema>>;
 
 /** A finished match (MatchDto of match-v5), with every field Riot sent. */
+export type RiotChampionMastery = z.output<typeof riotChampionMasterySchema>;
 export type RiotMatch = z.output<typeof riotMatchSchema>;
 export type RiotParticipant = z.output<typeof riotParticipantSchema>;
 
@@ -268,6 +283,15 @@ export interface RiotClient {
     platform: Platform,
     puuid: string,
   ): Promise<RiotLeagueEntry[]>;
+
+  /**
+   * Gets the mastery of a player for each champion they have played on one platform, the
+   * most points first: an empty list for a player with none.
+   */
+  getChampionMasteriesByPuuid(
+    platform: Platform,
+    puuid: string,
+  ): Promise<RiotChampionMastery[]>;
 
   /**
    * Gets the IDs of a player's matches in the region of a platform, the most recent first:
@@ -362,6 +386,15 @@ export function createRiotClient({
         path: `/lol/league/v4/entries/by-puuid/${pathSegment(puuid)}`,
       };
       return (await get(request, z.array(riotLeagueEntrySchema))) ?? [];
+    },
+
+    async getChampionMasteriesByPuuid(platform, puuid) {
+      const request = {
+        route: checkPlatform(platform),
+        method: 'champion-mastery-v4.getAllChampionMasteriesByPUUID',
+        path: `/lol/champion-mastery/v4/champion-masteries/by-puuid/${pathSegment(puuid)}`,
+      };
+      return (await get(request, z.array(riotChampionMasterySchema))) ?? [];
     },
 
     async getMatchIdsByPuuid(

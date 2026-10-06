@@ -19,9 +19,12 @@ const SYLAS =
   'https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/Sylas.png';
 const MONKEY_KING =
   'https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/MonkeyKing.png';
-// The profile icon, then the 2 champions of the summary, then the 2 of the matches.
+// The profile icon, then the 2 champions of the top mastery (a third one is not in Data
+// Dragon), the 2 of the summary, and the 2 of the matches.
 const IMAGE_SOURCES = [
   'https://ddragon.leagueoflegends.com/cdn/16.19.1/img/profileicon/6.png',
+  SYLAS,
+  MONKEY_KING,
   SYLAS,
   MONKEY_KING,
   SYLAS,
@@ -70,6 +73,7 @@ describe('profile page', () => {
     await findMatches();
     expect(requests.toSorted()).toEqual([
       '/api/v1/players/euw/100%25%20sure%3F/EUW',
+      '/api/v1/players/euw/100%25%20sure%3F/EUW/mastery',
       '/api/v1/players/euw/100%25%20sure%3F/EUW/matches',
       '/api/v1/static-data',
     ]);

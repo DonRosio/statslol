@@ -1,10 +1,12 @@
 import {
   riotAccountSchema,
+  riotChampionMasterySchema,
   riotLeagueEntrySchema,
   riotMatchIdSchema,
   riotSummonerSchema,
   type Platform,
   type RiotAccount,
+  type RiotChampionMastery,
   type RiotClient,
   type RiotLeagueEntry,
   type RiotSummoner,
@@ -21,6 +23,8 @@ const HOUR = 60 * MINUTE;
 const ACCOUNT_TTL = 6 * HOUR;
 // Ranks and levels change after each game.
 const PROFILE_TTL = 5 * MINUTE;
+// Mastery moves with each game, but only by a few points: 10 minutes is fresh enough.
+const MASTERY_TTL = 10 * MINUTE;
 // A finished game shows up in the history within 2 minutes.
 const MATCH_IDS_TTL = 2 * MINUTE;
 // Long enough to absorb repeated lookups of a misspelt name, short enough for a new or
@@ -43,6 +47,12 @@ const leagueEntriesPolicy: CachePolicy<RiotLeagueEntry[]> = {
   name: 'riot league entries',
   schema: z.array(riotLeagueEntrySchema),
   ttlSeconds: () => PROFILE_TTL,
+};
+
+const masteryPolicy: CachePolicy<RiotChampionMastery[]> = {
+  name: 'riot champion mastery',
+  schema: z.array(riotChampionMasterySchema),
+  ttlSeconds: () => MASTERY_TTL,
 };
 
 const matchIdsPolicy: CachePolicy<string[]> = {
@@ -85,6 +95,8 @@ export function cachedRiotClient(
       `${prefix}:summoner:${platform}:${puuid}`,
     league: (platform: Platform, puuid: string) =>
       `${prefix}:league:${platform}:${puuid}`,
+    mastery: (platform: Platform, puuid: string) =>
+      `${prefix}:mastery:${platform}:${puuid}`,
     latestMatchIds: (platform: Platform, puuid: string) =>
       `${prefix}:match-ids:${platform}:${puuid}`,
   };
@@ -112,6 +124,12 @@ export function cachedRiotClient(
       );
     },
 
+    getChampionMasteriesByPuuid(platform, puuid) {
+      return cache.getOrLoad(keys.mastery(platform, puuid), masteryPolicy, () =>
+        riot.getChampionMasteriesByPuuid(platform, puuid),
+      );
+    },
+
     getMatchIdsByPuuid(platform, puuid, page) {
       // Only the first page is cached: it comes with every profile. The next ones are asked
       // for rarely, and caching them would make a history refresh much more complicated.
@@ -134,6 +152,7 @@ export function cachedRiotClient(
         keys.account(riotId),
         keys.summoner(platform, puuid),
         keys.league(platform, puuid),
+        keys.mastery(platform, puuid),
         keys.latestMatchIds(platform, puuid),
       ]);
     },

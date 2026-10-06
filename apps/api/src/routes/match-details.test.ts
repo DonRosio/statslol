@@ -16,6 +16,9 @@ function setUp(riotMatches: RiotMatch[] = [fakeMatch('KR_1')]) {
     getAccountByRiotId: vi.fn<RiotClient['getAccountByRiotId']>(),
     getSummonerByPuuid: vi.fn<RiotClient['getSummonerByPuuid']>(),
     getLeagueEntriesByPuuid: vi.fn<RiotClient['getLeagueEntriesByPuuid']>(),
+    getChampionMasteriesByPuuid: vi.fn<
+      RiotClient['getChampionMasteriesByPuuid']
+    >(() => Promise.resolve([])),
     getMatchIdsByPuuid: vi.fn<RiotClient['getMatchIdsByPuuid']>(),
     getMatch: vi.fn<RiotClient['getMatch']>((_platform, id) =>
       Promise.resolve(byId.get(id) ?? null),
