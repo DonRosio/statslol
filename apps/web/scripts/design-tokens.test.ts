@@ -150,12 +150,15 @@ describe('design tokens', () => {
         [...css.matchAll(/var\(--([\w-]+)\)/g)].map(([, name]) => name ?? ''),
       ),
     );
-    // Custom properties a component sets for itself (--result-color...).
+    // Custom properties a component sets for itself (--result-bg...), or the code does inline
+    // (--win-rate-color, src/components/WinRate.tsx).
     const own = new Set(
-      stylesheets.flatMap(({ path, css }) =>
-        path === 'styles.css'
-          ? []
-          : [...css.matchAll(/(--[\w-]+):/g)].map(([, name]) => name ?? ''),
+      ['--win-rate-color'].concat(
+        stylesheets.flatMap(({ path, css }) =>
+          path === 'styles.css'
+            ? []
+            : [...css.matchAll(/(--[\w-]+):/g)].map(([, name]) => name ?? ''),
+        ),
       ),
     );
     const unknown = [...used].filter(
@@ -296,6 +299,10 @@ describe('contrast over the background image', () => {
     ['secondary text', 'color-muted'],
     ['a win rate above half', 'color-win-text'],
     ['a win rate under half', 'color-loss-text'],
+    ['a very low win rate', 'color-rate-low'],
+    ['a win rate of half', 'color-rate-mid'],
+    ['a high win rate', 'color-rate-high'],
+    ['an exceptional win rate', 'color-rate-top'],
   ])('keeps %s readable in a box over the glow', (_what, foreground) => {
     expect(contrast(color(foreground), box())).toBeGreaterThanOrEqual(4.5);
   });

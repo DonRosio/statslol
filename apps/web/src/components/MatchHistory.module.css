@@ -1,7 +1,7 @@
 /* A box like the ranks', around the title and the games. */
 .box {
   padding: 0.75rem;
-  border: 1px solid var(--color-border);
+  border: 0;
   border-radius: var(--radius);
   background-color: var(--color-box);
   background-image: var(--highlight);

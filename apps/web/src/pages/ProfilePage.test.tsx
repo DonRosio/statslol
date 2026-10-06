@@ -20,9 +20,11 @@ const SYLAS =
 const MONKEY_KING =
   'https://ddragon.leagueoflegends.com/cdn/16.19.1/img/champion/MonkeyKing.png';
 // The profile icon, then the 2 champions of the top mastery (a third one is not in Data
-// Dragon), the 2 of the summary, and the 2 of the matches.
+// Dragon), the 2 of the top champions, the 2 of the summary, and the 2 of the matches.
 const IMAGE_SOURCES = [
   'https://ddragon.leagueoflegends.com/cdn/16.19.1/img/profileicon/6.png',
+  SYLAS,
+  MONKEY_KING,
   SYLAS,
   MONKEY_KING,
   SYLAS,
@@ -59,7 +61,7 @@ describe('profile page', () => {
     ).toBeDefined();
     const solo = screen.getByRole('region', { name: 'Ranked Solo/Duo' });
     expect(within(solo).getByText('Challenger · 1342 LP')).toBeDefined();
-    expect(within(solo).getByText('120W 80L · 60% win rate')).toBeDefined();
+    expect(solo.textContent).toContain('120W 80L · 60% win rate');
     const flex = screen.getByRole('region', { name: 'Ranked Flex' });
     expect(within(flex).getByText('Unranked')).toBeDefined();
   });
@@ -73,6 +75,7 @@ describe('profile page', () => {
     await findMatches();
     expect(requests.toSorted()).toEqual([
       '/api/v1/players/euw/100%25%20sure%3F/EUW',
+      '/api/v1/players/euw/100%25%20sure%3F/EUW/champions',
       '/api/v1/players/euw/100%25%20sure%3F/EUW/mastery',
       '/api/v1/players/euw/100%25%20sure%3F/EUW/matches',
       '/api/v1/static-data',
@@ -98,7 +101,8 @@ describe('profile page', () => {
     ]) {
       expect(within(ranked).getByText(text)).toBeDefined();
     }
-    expect(within(ranked).getByText(/· 30:34$/)).toBeDefined();
+    // The 3 lines on the left of the card: the mode, the length, how long ago.
+    expect(within(ranked).getByText('30:34')).toBeDefined();
     // The champion and the position are drawn, not written: the images say what they are.
     expect(within(ranked).getByRole('img', { name: 'Sylas' })).toBeDefined();
     expect(within(ranked).getByRole('img', { name: 'Mid' })).toBeDefined();

@@ -82,7 +82,7 @@ describe('the Mastery tab', () => {
     expect(within(other).getByText('No game in Season 16')).toBeDefined();
   });
 
-  it('colours the win rate: blue from half of the games won, orange under', async () => {
+  it('colours the win rate with the scale: red low, grey at half', async () => {
     mockPlayerApi({
       champions: () =>
         HttpResponse.json({
@@ -98,9 +98,11 @@ describe('the Mastery tab', () => {
 
     const [sylas, wukong] = await threeCards();
     const rate = async (card: HTMLElement, text: string) =>
-      (await within(card).findByText(text)).className;
-    expect(await rate(sylas, '25%')).toMatch(/rateLost/);
-    expect(await rate(wukong, '50%')).toMatch(/rateWon/);
+      (await within(card).findByText(text)).style.getPropertyValue(
+        '--win-rate-color',
+      );
+    expect(await rate(sylas, '25%')).toBe('var(--color-rate-low)');
+    expect(await rate(wukong, '50%')).toBe('var(--color-rate-mid)');
   });
 
   it('shows the cards without the season when its statistics cannot be had', async () => {
@@ -292,7 +294,25 @@ describe('the Mastery tab', () => {
 });
 
 describe('the top mastery of the overview', () => {
-  it('shows the 3 champions with the most points, with a link to the whole list', async () => {
+  it('shows 5 champions at most', async () => {
+    const champions = Array.from({ length: 8 }, (_, index) => ({
+      ...at(MASTERY.champions, 0),
+      championId: 1000 + index,
+      points: 100_000 - index,
+    }));
+    mockPlayerApi({
+      mastery: () =>
+        HttpResponse.json({ score: 8, totalPoints: 800_000, champions }),
+    });
+
+    renderPage(PLAYER_PAGE_PATH);
+
+    const box = await screen.findByRole('region', { name: 'Top mastery' });
+    await within(box).findByText('100,000 points');
+    expect(within(box).getAllByRole('group')).toHaveLength(5);
+  });
+
+  it('shows the champions with the most points, with a link to the whole list', async () => {
     mockPlayerApi();
 
     renderPage(PLAYER_PAGE_PATH);

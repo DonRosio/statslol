@@ -3,6 +3,7 @@ import {
   classicDetails,
   classicPlayers,
   classicRanks,
+  CURRENT_SEASON,
   LOADOUT,
   matchSummary,
   PLAYER_API_PATH,
@@ -47,7 +48,8 @@ test('finds a player from the home page, then shows their profile', async ({
   const matches = page.getByRole('listitem');
   await expect(matches).toHaveCount(2);
   await expect(matches.nth(0)).toContainText('Victory');
-  await expect(matches.nth(0)).toContainText('18h ago · 30:34');
+  await expect(matches.nth(0)).toContainText('30:34');
+  await expect(matches.nth(0)).toContainText('18h ago');
   await expect(matches.nth(1)).toContainText('ARAM');
   // The champion is not written on the card: its image says who it is.
   await expect(
@@ -57,9 +59,9 @@ test('finds a player from the home page, then shows their profile', async ({
   // The profile icon and the 2 champions, all displayed by the browser (the icon of the
   // position is the site's own image).
   const images = page.locator('img[src^="https://ddragon"]');
-  // The profile icon, and the 2 champions three times: in the top mastery, in the summary,
-  // and in the matches.
-  await expect(images).toHaveCount(7);
+  // The profile icon, and the 2 champions four times: in the top mastery, in the top champions,
+  // in the summary, and in the matches.
+  await expect(images).toHaveCount(9);
   for (const image of await images.all()) {
     await expect(image).toHaveJSProperty('naturalWidth', 1);
   }
@@ -253,6 +255,10 @@ test('shows the spells, runes, items and players of a match, and opens a player 
   });
   api.answer(`${ally}/matches?start=0`, { matches: [], nextStart: null });
   api.answer(`${ally}/mastery`, { score: 0, totalPoints: 0, champions: [] });
+  api.answer(`${ally}/champions?season=${CURRENT_SEASON.id}`, {
+    season: CURRENT_SEASON.id,
+    records: [],
+  });
 
   await page.goto(PLAYER_PAGE_PATH);
 

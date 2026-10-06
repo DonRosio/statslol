@@ -3,6 +3,7 @@ import { useId } from 'react';
 
 import { formatTier, winRate } from '../format.ts';
 import styles from './RankCards.module.css';
+import { WinRate } from './WinRate.tsx';
 
 /** The player's rank in each ranked queue; grey bars while the profile loads (undefined). */
 export function RankCards({
@@ -53,7 +54,12 @@ function RankDetails({ rank }: { rank: Rank | null | undefined }) {
       </p>
       <p className={styles.record}>
         {rank.wins}W {rank.losses}L
-        {rate !== null && ` · ${String(rate)}% win rate`}
+        {rate !== null && (
+          <>
+            {' · '}
+            <WinRate rate={rate} /> win rate
+          </>
+        )}
       </p>
     </>
   );

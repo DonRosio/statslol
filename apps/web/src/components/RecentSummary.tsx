@@ -3,6 +3,7 @@ import type { StaticData } from '@statslol/shared';
 import { formatAverageScore, formatKdaRatio } from '../format.ts';
 import type { ChampionStats, GroupStats } from '../recent-stats.ts';
 import { ChampionIcon } from './ChampionIcon.tsx';
+import { WinRate } from './WinRate.tsx';
 import styles from './RecentSummary.module.css';
 
 const CHAMPION_IMAGE_SIZE = 32;
@@ -70,7 +71,9 @@ function WinRateRing({ stats }: { readonly stats: GroupStats }) {
         )}
       </svg>
       <div className={styles.ringText} aria-hidden="true">
-        <strong className={styles.ringRate}>{winRate}%</strong>
+        <strong className={styles.ringRate}>
+          <WinRate rate={winRate ?? 0} />
+        </strong>
         <span className={styles.small}>
           {wins}W - {losses}L
         </span>
@@ -143,12 +146,8 @@ function ChampionRow({
         size={CHAMPION_IMAGE_SIZE}
       />
       <div>
-        <p
-          className={
-            (stats.winRate ?? 0) >= 50 ? styles.rateWon : styles.rateLost
-          }
-        >
-          {stats.winRate}%
+        <p>
+          <WinRate rate={stats.winRate ?? 0} />
           <span className={styles.record}>
             {' '}
             - {stats.wins}W/{stats.losses}L

@@ -9,12 +9,11 @@
   justify-content: space-between;
   gap: 0.25rem 0.5rem;
   padding: 0.25rem 0.625rem;
-  border: 1px solid var(--color-border);
+  /* No outline and no light on the top: a flat band. Opaque, unlike the box around the
+     history: the games are what is read. */
+  border: 0;
   border-radius: var(--radius);
-  /* Opaque, unlike the box around the history: the games are what is read. */
   background-color: var(--result-bg);
-  background-image: var(--highlight);
-  box-shadow: inset 0 1px 0 var(--color-highlight-edge);
   /* By default a remake: no tint. */
   --result-bg: var(--color-inset);
   --result-text: var(--color-muted);
@@ -33,14 +32,38 @@
   --result-muted: var(--color-loss-muted);
 }
 
+/*
+ * The 5 parts of a game (the lines, the champion, the numbers, the items, the players) are
+ * spread so that the room around each one is the same: between two of them, and at the two
+ * ends, before the arrow strip. On a narrow screen they wrap.
+ */
+.content {
+  display: flex;
+  flex: 1 1 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-evenly;
+  /* No gap between columns: it would add to the room between two parts and not at the ends. */
+  gap: 0.25rem 0;
+  min-width: 0;
+}
+
 .match p {
   margin: 0;
   font-size: 0.8125rem;
   line-height: 1.15;
 }
 
+/*
+ * The 3 lines (the mode, the length, how long ago) are as high as the icon of the champion,
+ * spread over its height.
+ */
 .info {
-  flex: 0 0 7rem;
+  display: flex;
+  flex: 0 0 5.25rem;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 46px;
 }
 
 .result {
@@ -194,9 +217,9 @@ a.teammate:hover {
   margin: -0.25rem -0.625rem -0.25rem 0;
   padding: 0;
   border: none;
-  border-left: 1px solid var(--color-frame-line);
   border-radius: 0 var(--radius) var(--radius) 0;
-  background: transparent;
+  /* A lighter tint than the band, and no line between them. */
+  background: var(--color-light-wash);
   color: var(--result-muted);
 }
 

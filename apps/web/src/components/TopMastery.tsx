@@ -13,7 +13,7 @@ import { MasteryEmblem } from './MasteryEmblem.tsx';
 import styles from './TopMastery.module.css';
 
 /** How many champions the box shows. */
-const TOP = 3;
+const TOP = 5;
 
 const MASTERY_TAB = PROFILE_TABS.find((tab) => tab.path === 'mastery');
 

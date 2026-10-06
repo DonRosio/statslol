@@ -60,72 +60,78 @@ export function MatchCard({ match, player, staticData, now }: MatchCardProps) {
 
   return (
     <li className={styles.match} data-result={match.result}>
-      <div className={styles.info}>
-        <p className={styles.result}>
-          {/* The color is not enough for screen readers: they get the word. */}
-          {!resultIsWritten && (
-            <>
-              <span className="visually-hidden">
-                {formatResult(match)}
-              </span>{' '}
-            </>
-          )}
-          <span>{queueName(match.queueId)}</span>
-        </p>
-        {resultIsWritten && (
-          <p className={styles.muted}>{formatResult(match)}</p>
-        )}
-        <p className={styles.muted}>
-          <time
-            dateTime={match.startedAt}
-            title={formatDateTime(match.startedAt)}
-          >
-            {formatTimeAgo(match.startedAt, now)}
-          </time>
-          {' · '}
-          {formatDuration(match.durationSeconds)}
-        </p>
-      </div>
-
-      <div className={styles.champion}>
-        <ChampionIcon
-          championId={match.championId}
-          championName={match.championName}
-          staticData={staticData}
-          size={CHAMPION_IMAGE_SIZE}
-        />
-        <div className={styles.level}>
-          <span className={styles.muted}>Lvl. {match.level}</span>
-          <PositionIcon position={match.position} />
+      <div className={styles.content}>
+        {/* Three lines, one under the other: the mode, the length of the game, how long ago.
+          A place (Arena) or a remake is written under the mode, and the length goes with the
+          time. */}
+        <div className={styles.info}>
+          <p className={styles.result}>
+            {/* The color is not enough for screen readers: they get the word. */}
+            {!resultIsWritten && (
+              <>
+                <span className="visually-hidden">
+                  {formatResult(match)}
+                </span>{' '}
+              </>
+            )}
+            <span>{queueName(match.queueId)}</span>
+          </p>
+          <p className={styles.muted}>
+            {resultIsWritten
+              ? formatResult(match)
+              : formatDuration(match.durationSeconds)}
+          </p>
+          <p className={styles.muted}>
+            {resultIsWritten && <>{formatDuration(match.durationSeconds)} · </>}
+            <time
+              dateTime={match.startedAt}
+              title={formatDateTime(match.startedAt)}
+            >
+              {formatTimeAgo(match.startedAt, now)}
+            </time>
+          </p>
         </div>
-      </div>
 
-      <div className={styles.stats}>
-        <p className={styles.score}>
-          <span className="visually-hidden">Kills, deaths, assists: </span>
-          {match.kills}
-          <span className={styles.slash}> / </span>
-          <span className={styles.deaths}>{match.deaths}</span>
-          <span className={styles.slash}> / </span>
-          {match.assists}
-        </p>
-        <p className={styles.muted}>
-          {formatKdaRatio(match.kills, match.deaths, match.assists)} KDA
-        </p>
-        <p className={styles.muted}>
-          {isSupport
-            ? `${String(match.visionScore)} vision (${formatPerMinute(match.visionScore, match.durationSeconds)})`
-            : `${String(match.creepScore)} CS (${formatPerMinute(match.creepScore, match.durationSeconds)})`}
-        </p>
-      </div>
+        <div className={styles.champion}>
+          <ChampionIcon
+            championId={match.championId}
+            championName={match.championName}
+            staticData={staticData}
+            size={CHAMPION_IMAGE_SIZE}
+          />
+          <div className={styles.level}>
+            <span className={styles.muted}>Lvl. {match.level}</span>
+            <PositionIcon position={match.position} />
+          </div>
+        </div>
 
-      <div className={styles.cluster}>
-        <Spells spellIds={match.spellIds} staticData={staticData} />
-        <Runes runes={match.runes} staticData={staticData} />
-        <Items itemIds={match.itemIds} staticData={staticData} />
-      </div>
+        <div className={styles.stats}>
+          <p className={styles.score}>
+            <span className="visually-hidden">Kills, deaths, assists: </span>
+            {match.kills}
+            <span className={styles.slash}> / </span>
+            <span className={styles.deaths}>{match.deaths}</span>
+            <span className={styles.slash}> / </span>
+            {match.assists}
+          </p>
+          <p className={styles.muted}>
+            {formatKdaRatio(match.kills, match.deaths, match.assists)} KDA
+          </p>
+          <p className={styles.muted}>
+            {isSupport
+              ? `${String(match.visionScore)} vision (${formatPerMinute(match.visionScore, match.durationSeconds)})`
+              : `${String(match.creepScore)} CS (${formatPerMinute(match.creepScore, match.durationSeconds)})`}
+          </p>
+        </div>
 
-      <Players match={match} player={player} staticData={staticData} />
+        <div className={styles.cluster}>
+          <Spells spellIds={match.spellIds} staticData={staticData} />
+          <Runes runes={match.runes} staticData={staticData} />
+          <Items itemIds={match.itemIds} staticData={staticData} />
+        </div>
+
+        <Players match={match} player={player} staticData={staticData} />
+      </div>
 
       <button
         type="button"

@@ -377,3 +377,43 @@ describe('result of a game', () => {
     expect(within(card).queryByText('Victory')).toBeNull();
   });
 });
+
+describe('the three lines on the left of a game', () => {
+  /** The lines of the first block of the card (the mode, the length, how long ago). */
+  function lines(card: HTMLElement) {
+    return [...(card.querySelector('[class*="info"]')?.children ?? [])].map(
+      (line) => line.textContent,
+    );
+  }
+
+  it('are the mode, the length of the game, and how long ago, one under the other', async () => {
+    const { card } = await showMatch(matchSummary('KR_3'));
+
+    expect(lines(card)).toEqual([
+      // The hidden word is for screen readers: the color tells the result.
+      'Victory Solo/Duo',
+      '30:34',
+      expect.stringMatching(/^\d+(d|h| min) ago$/) as string,
+    ]);
+  });
+
+  it('write the place of an Arena game under the mode, and the length with the time', async () => {
+    const { card } = await showMatch(ARENA_MATCH, {
+      path: `${PLAYER_PAGE_PATH}/arena`,
+    });
+
+    expect(lines(card)).toEqual([
+      'Arena',
+      '3rd place',
+      expect.stringMatching(/^18:25 · \d+(d|h| min) ago$/) as string,
+    ]);
+  });
+
+  it('write a remake under the mode too', async () => {
+    const { card } = await showMatch(
+      matchSummary('KR_3', { result: 'remake' }),
+    );
+
+    expect(lines(card).slice(0, 2)).toEqual(['Solo/Duo', 'Remake']);
+  });
+});

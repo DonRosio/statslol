@@ -3,6 +3,7 @@ import { useOutletContext } from 'react-router';
 
 import { MatchHistory } from '../components/MatchHistory.tsx';
 import { RankCards } from '../components/RankCards.tsx';
+import { TopChampions } from '../components/TopChampions.tsx';
 import { TopMastery } from '../components/TopMastery.tsx';
 import styles from './ProfilePage.module.css';
 
@@ -14,7 +15,8 @@ export interface ProfileContext {
 }
 
 /**
- * The "Overview" tab: the ranks and the top mastery on the left, the summary and the matches on the right. The
+ * The "Overview" tab: the ranks, the champions played the most in the season and
+ * the ones with the most mastery on the left, the summary and the matches on the right. The
  * Arena games are not here: they have their own tab.
  */
 export function ProfileOverview() {
@@ -28,6 +30,7 @@ export function ProfileOverview() {
           </p>
         )}
         <RankCards ranks={profile?.ranks} />
+        <TopChampions player={player} />
         <TopMastery player={player} />
       </div>
       <MatchHistory player={player} mode="overview" />

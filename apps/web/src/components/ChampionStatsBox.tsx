@@ -40,6 +40,7 @@ import utility from '../assets/roles/utility.png';
 import { ChampionIcon } from './ChampionIcon.tsx';
 import styles from './ChampionStatsBox.module.css';
 import { ErrorMessage } from './ErrorMessage.tsx';
+import { WinRate } from './WinRate.tsx';
 
 const ROLE_ICONS: Readonly<Record<RoleId, string>> = {
   ALL: allRoles,
@@ -372,13 +373,7 @@ function ChampionTable({
             <span className={styles.name}>{nameOf(champion)}</span>
           </span>
           <span role="cell">
-            <span
-              className={
-                champion.winRate >= 50 ? styles.rateWon : styles.rateLost
-              }
-            >
-              {champion.winRate}%
-            </span>
+            <WinRate rate={champion.winRate} />
             <span className={styles.small}>
               {champion.wins}W {champion.losses}L
             </span>

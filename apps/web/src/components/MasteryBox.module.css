@@ -1,7 +1,7 @@
 /* A box like the ranks' and the match history's. */
 .box {
   padding: 0.75rem;
-  border: 1px solid var(--color-border);
+  border: 0;
   border-radius: var(--radius);
   background-color: var(--color-box);
   background-image: var(--highlight);
@@ -64,7 +64,7 @@
   gap: 0.5rem;
   min-width: 0;
   padding: 0.625rem 0.75rem;
-  border: 1px solid var(--color-border);
+  border: 0;
   border-radius: var(--radius);
   background-color: var(--color-inset);
   background-image: var(--highlight);
@@ -121,20 +121,6 @@
 
 .season p {
   margin: 0;
-}
-
-/* The win rate: blue from half of the games won, orange under. */
-.rateWon,
-.rateLost {
-  font-weight: bold;
-}
-
-.rateWon {
-  color: var(--color-win-text);
-}
-
-.rateLost {
-  color: var(--color-loss-text);
 }
 
 .more {

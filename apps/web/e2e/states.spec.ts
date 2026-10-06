@@ -1,4 +1,5 @@
 import {
+  CURRENT_SEASON,
   PLAYER_API_PATH,
   PLAYER_PAGE_PATH,
   PROFILE,
@@ -35,6 +36,13 @@ test('says when no player has the Riot ID, with the search form ready to correct
   api.answer(PLAYER_API_PATH, notFound, { status: 404 });
   api.answer(`${PLAYER_API_PATH}/matches?start=0`, notFound, { status: 404 });
   api.answer(`${PLAYER_API_PATH}/mastery`, notFound, { status: 404 });
+  api.answer(
+    `${PLAYER_API_PATH}/champions?season=${CURRENT_SEASON.id}`,
+    notFound,
+    {
+      status: 404,
+    },
+  );
   api.answer('/api/v1/static-data', undefined, { status: 404 });
 
   await page.goto(PLAYER_PAGE_PATH);

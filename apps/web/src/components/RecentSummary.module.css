@@ -46,20 +46,7 @@
   line-height: 1.2;
 }
 
-/* The win rate of a champion: blue from half of the games won, orange under. */
-.rateWon,
-.rateLost {
-  font-weight: bold;
-}
-
-.rateWon {
-  color: var(--color-win-text);
-}
-
-.rateLost {
-  color: var(--color-loss-text);
-}
-
+/* The wins and losses after the win rate of a champion. */
 .record {
   font-weight: normal;
   color: var(--color-text);

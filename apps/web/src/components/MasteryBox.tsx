@@ -18,6 +18,7 @@ import { formatKdaRatio, formatNumber, formatTimeAgo } from '../format.ts';
 import { ChampionIcon } from './ChampionIcon.tsx';
 import { ErrorMessage } from './ErrorMessage.tsx';
 import { MasteryEmblem } from './MasteryEmblem.tsx';
+import { WinRate } from './WinRate.tsx';
 import styles from './MasteryBox.module.css';
 
 /** The champion's icon, and the height of the emblem beside it. */
@@ -246,15 +247,8 @@ function MasteryCard({
                 KDA
               </p>
               <p>
-                Winrate :{' '}
-                <span
-                  className={
-                    season.winRate >= 50 ? styles.rateWon : styles.rateLost
-                  }
-                >
-                  {season.winRate}%
-                </span>{' '}
-                - {season.wins}W/{season.losses}L
+                Winrate : <WinRate rate={season.winRate} /> - {season.wins}W/
+                {season.losses}L
               </p>
             </>
           )}

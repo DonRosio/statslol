@@ -56,16 +56,39 @@
    * A match is tinted with its result. The colors themselves stay for the edge of the card;
    * the text is a little lighter than the edge, to be readable on the tinted background.
    */
-  --color-win-bg: color-mix(
+  --color-win-tint: color-mix(
     in srgb,
     var(--color-surface) 84%,
     var(--color-win)
   );
-  --color-loss-bg: color-mix(
+  --color-loss-tint: color-mix(
     in srgb,
     var(--color-surface) 84%,
     var(--color-loss)
   );
+  /* The tints, a little darker: a fifth of the dark of the background. */
+  --color-win-bg: color-mix(
+    in srgb,
+    var(--color-win-tint) 80%,
+    var(--color-bg)
+  );
+  --color-loss-bg: color-mix(
+    in srgb,
+    var(--color-loss-tint) 80%,
+    var(--color-bg)
+  );
+  /*
+   * The scale of a win rate: red up to 35 %, a soft grey at 50, blue from 65 %, and the pink
+   * of the accent from 70 %, between them a gradient (src/win-rate-color.ts). It is spent
+   * between 35 and 65 because that is where win rates are: a gradient from 0 to 100 would
+   * give them all the same shade.
+   */
+  --color-rate-low: #ee5a52;
+  --color-rate-mid: #d8d4e0;
+  --color-rate-high: #4ea2e6;
+  --color-rate-top: var(--color-accent);
+  /* A light wash over a color (the arrow strip of a match, lighter than the band). */
+  --color-light-wash: color-mix(in srgb, white 8%, transparent);
   --color-win-text: color-mix(in srgb, var(--color-win) 70%, white);
   --color-loss-text: color-mix(in srgb, var(--color-loss) 70%, white);
   --color-win-muted: color-mix(
@@ -99,12 +122,15 @@
 
   /* A box of the panel (the ranks, the history): the inset color, a little see-through. */
   --color-box: color-mix(in srgb, var(--color-inset) 72%, transparent);
-  /* A light edge on the top of a box, and a soft light fading down from it. */
+  /*
+   * A light edge on the top of a box, and a soft light fading down from it: only the top, so
+   * short enough (1.25 rem) not to reach the middle of a match, which is about 4 rem high.
+   */
   --color-highlight-edge: color-mix(in srgb, white 13%, transparent);
   --highlight: linear-gradient(
     to bottom,
-    color-mix(in srgb, white 6%, transparent),
-    transparent 3rem
+    color-mix(in srgb, white 7%, transparent),
+    transparent 1.25rem
   );
 
   /*
@@ -127,6 +153,12 @@
  */
 html {
   scrollbar-gutter: stable;
+}
+
+/* A win rate, painted with the scale (see WinRate.tsx, which sets --win-rate-color). */
+.win-rate {
+  color: var(--win-rate-color);
+  font-weight: bold;
 }
 
 body {

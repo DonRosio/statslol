@@ -1,0 +1,72 @@
+/* A box like the ranks' and the top mastery's. */
+.box {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-radius: var(--radius);
+  background-color: var(--color-box);
+  background-image: var(--highlight);
+  box-shadow: inset 0 1px 0 var(--color-highlight-edge);
+}
+
+.title {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  font-weight: normal;
+  color: var(--color-muted);
+}
+
+.season {
+  font-size: 0.75rem;
+  color: var(--color-soft);
+}
+
+/* Height of the 5 champions. */
+.placeholder {
+  height: 13rem;
+}
+
+.list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+/* The icon, the KDA, the win rate: lines close together. */
+.row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cell p {
+  margin: 0;
+  line-height: 1.15;
+}
+
+/* The win rate and the games are against the right edge of the box, written from the right. */
+.cell:last-child {
+  text-align: right;
+}
+
+.main {
+  overflow: hidden;
+  font-size: 0.8125rem;
+  font-weight: bold;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail {
+  overflow: hidden;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.all {
+  display: block;
+  margin-top: 0.625rem;
+  font-size: 0.75rem;
+}
