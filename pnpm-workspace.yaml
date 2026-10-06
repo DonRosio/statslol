@@ -29,6 +29,10 @@ allowBuilds:
   esbuild: false
 
 overrides:
+  # GHSA-68fv-2mgg-jv7q (denial of service, fixed in 1.2.2, published 2026-09-30): reached
+  # through postcss (Vite) and css-tree (jsdom), whose ranges still resolve to 1.2.1. Remove
+  # once they depend on 1.2.2 or later.
+  'source-map-js': '^1.2.2'
   # drizzle-kit 0.31 bundles the code it needs from tsx, but still lists these two
   # packages, which it never loads. Removing them drops two extra versions of esbuild,
   # one of them (0.18) with a known vulnerability (GHSA-67mh-4wv8-2f99).
