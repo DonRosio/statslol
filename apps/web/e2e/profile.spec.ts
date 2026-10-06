@@ -112,7 +112,7 @@ test('keeps the Arena games for their tab', async ({ page, api }) => {
   );
 });
 
-test('has a Champions tab: the champions played, which the filters narrow down', async ({
+test('has a Champions tab: the champions of the season, which the position narrows down', async ({
   page,
   api,
 }) => {
@@ -124,14 +124,23 @@ test('has a Champions tab: the champions played, which the filters narrow down',
 
   await expect(page).toHaveURL(`${PLAYER_PAGE_PATH}/champions`);
   const table = page.getByRole('table', { name: 'Champions played' });
-  // The header, then Sylas and Wukong.
+  // The header, then Sylas and Wukong (Arena is a mode of its own).
   await expect(table.getByRole('row')).toHaveCount(3);
-  await expect(page.getByText(/6 games counted/)).toBeVisible();
+  await expect(page.getByText(/^6 games · /)).toBeVisible();
 
-  await page.getByRole('searchbox', { name: 'Search a champion' }).fill('wuk');
+  await page.getByRole('button', { name: 'Top' }).click();
 
   await expect(table.getByRole('row')).toHaveCount(2);
   await expect(table.getByRole('row').nth(1)).toContainText('Wukong');
+
+  // Arena has no positions: only "Fill" is lit, and the table shows the places.
+  await page.getByRole('button', { name: 'Arena' }).click();
+  await expect(page.getByRole('button', { name: 'Fill' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.getByRole('button', { name: 'Top' })).toBeDisabled();
+  await expect(table.getByRole('row').nth(1)).toContainText('3.5');
   await expect(bar.getByRole('link', { name: 'Champions' })).toHaveAttribute(
     'aria-current',
     'page',

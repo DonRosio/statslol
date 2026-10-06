@@ -39,6 +39,14 @@
   font-size: 0.8125rem;
   line-height: 1.2;
   color: var(--color-soft);
+  /*
+   * The boxes are evenly spaced, but the eye measures from the bottom of the name's letters
+   * (its baseline) to the top of this line's capitals, and from this line to the button: the
+   * name's box has more room under its letters than the button has above, so the line looked
+   * too close to the button (10.7 px above, 4.9 px below). Raised by 3 px: about 8 px each.
+   */
+  position: relative;
+  top: -0.1875rem;
 }
 
 /*

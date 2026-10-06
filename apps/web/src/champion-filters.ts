@@ -1,39 +1,50 @@
-import type { ChampionRecord } from '@statslol/shared';
+import { ARENA_QUEUE_IDS, type ChampionRecord } from '@statslol/shared';
 
-import { queueName } from './queues.ts';
+/** The positions to choose from, in the order of the map; "all" keeps every game. */
+export const ROLES = [
+  { id: 'ALL', label: 'All roles' },
+  { id: 'TOP', label: 'Top' },
+  { id: 'JUNGLE', label: 'Jungle' },
+  { id: 'MIDDLE', label: 'Mid' },
+  { id: 'BOTTOM', label: 'Bot' },
+  { id: 'UTILITY', label: 'Support' },
+] as const;
 
-/** The game modes the records have games in, to choose from. */
-export interface QueueOption {
-  /** What the visitor reads: Riot has several queues under one name ("Normal"). */
-  readonly name: string;
-  readonly queueIds: ReadonlySet<number>;
-  readonly games: number;
+export type RoleId = (typeof ROLES)[number]['id'];
+
+/** The game modes to choose from. */
+export const QUEUE_FILTERS = [
+  // Every mode but Arena: its champions, and its games without positions or minions, would
+  // blur the numbers of the usual game.
+  { id: 'all', label: 'All', queueIds: null },
+  { id: 'solo', label: 'Solo/Duo', queueIds: [420] },
+  { id: 'normal', label: 'Normal draft', queueIds: [400] },
+  { id: 'flex', label: 'Flex', queueIds: [440] },
+  { id: 'arena', label: 'Arena', queueIds: [...ARENA_QUEUE_IDS] },
+  { id: 'aram', label: 'ARAM', queueIds: [450] },
+] as const;
+
+export type QueueFilterId = (typeof QUEUE_FILTERS)[number]['id'];
+
+/** The modes where a game has no position: Arena and ARAM. The roles do not apply to them. */
+export function hasRoles(queue: QueueFilterId): boolean {
+  return queue !== 'arena' && queue !== 'aram';
 }
 
-/** The modes of the records, the most played first; between two of them, by name. */
-export function queueOptions(
+/** The queue IDs of a mode filter among the records. */
+export function queueIdsOf(
+  queue: QueueFilterId,
   records: readonly ChampionRecord[],
-): QueueOption[] {
-  const options = new Map<string, { queueIds: Set<number>; games: number }>();
-  for (const { queueId, games } of records) {
-    const name = queueName(queueId);
-    const option = options.get(name) ?? { queueIds: new Set(), games: 0 };
-    option.queueIds.add(queueId);
-    option.games += games;
-    options.set(name, option);
+): ReadonlySet<number> {
+  const filter = QUEUE_FILTERS.find((candidate) => candidate.id === queue);
+  if (filter?.queueIds == null) {
+    return new Set(
+      records
+        .map((record) => record.queueId)
+        .filter((queueId) => !ARENA_QUEUE_IDS.has(queueId)),
+    );
   }
-  return [...options.entries()]
-    .map(([name, option]) => ({ name, ...option }))
-    .sort((a, b) => b.games - a.games || a.name.localeCompare(b.name));
-}
-
-/** Riot's positions, in the order of the map: from the top lane to the support. */
-const POSITION_ORDER = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'];
-
-/** The positions the records have games in, in the order of the map. */
-export function positionOptions(records: readonly ChampionRecord[]): string[] {
-  const present = new Set(records.map((record) => record.position));
-  return POSITION_ORDER.filter((position) => present.has(position));
+  return new Set<number>(filter.queueIds);
 }
 
 /** Whether a champion name contains what the visitor typed, ignoring case and spaces around. */

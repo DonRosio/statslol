@@ -44,6 +44,15 @@ const envSchema = z
     // Riot encrypts PUUIDs with a key specific to each application: to be incremented when
     // RIOT_API_KEY becomes the key of another application (development key → personal key).
     RIOT_KEY_GENERATION: z.coerce.number().int().min(1).max(32_767).default(1),
+    // Pause between two calls to Riot while a season's games are loaded in the background.
+    // The Riot key allows ~0.8 calls per second (100 per 2 minutes), shared with the visitors:
+    // 2 s leaves them 40% of it. A production key allows much more: lower it then.
+    SEASON_SYNC_PACE_MS: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(60_000)
+      .default(2000),
     REDIS_HOST: z.string().default('localhost'),
     REDIS_PORT: servicePortSchema.default(6379),
     REDIS_PASSWORD: passwordSchema,
@@ -73,6 +82,7 @@ const envSchema = z
     trustProxy: env.TRUST_PROXY ?? false,
     riotApiKey: env.RIOT_API_KEY,
     riotKeyGeneration: env.RIOT_KEY_GENERATION,
+    seasonSyncPaceMs: env.SEASON_SYNC_PACE_MS,
     redis: {
       host: env.REDIS_HOST,
       port: env.REDIS_PORT,

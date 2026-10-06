@@ -4,6 +4,8 @@ import { http, HttpResponse, type HttpResponseResolver } from 'msw';
 import {
   ARAM_MATCH,
   CHAMPION_RECORDS,
+  CURRENT_SEASON,
+  SYNC_DONE,
   arenaDetails,
   ARENA_MATCH,
   classicDetails,
@@ -51,7 +53,12 @@ export function mockPlayerApi({
         : classicDetails(String(params.matchId)),
     ),
   matchRanks = () => HttpResponse.json(classicRanks()),
-  champions = () => HttpResponse.json({ records: CHAMPION_RECORDS }),
+  champions = () =>
+    HttpResponse.json({
+      season: CURRENT_SEASON.id,
+      records: CHAMPION_RECORDS,
+    }),
+  seasonSync = () => HttpResponse.json(SYNC_DONE),
 }: {
   profile?: HttpResponseResolver;
   matches?: HttpResponseResolver;
@@ -60,11 +67,15 @@ export function mockPlayerApi({
   matchDetails?: HttpResponseResolver;
   matchRanks?: HttpResponseResolver;
   champions?: HttpResponseResolver;
+  /** Answers both the GET (progress) and the POST (start) of the season loading. */
+  seasonSync?: HttpResponseResolver;
 } = {}) {
   server.use(
     http.get('/api/v1/players/:region/:name/:tag', profile),
     http.get('/api/v1/players/:region/:name/:tag/matches', matches),
     http.get('/api/v1/players/:region/:name/:tag/champions', champions),
+    http.get('/api/v1/players/:region/:name/:tag/champions/sync', seasonSync),
+    http.post('/api/v1/players/:region/:name/:tag/champions/sync', seasonSync),
     http.post('/api/v1/players/:region/:name/:tag/refresh', refresh),
     http.get('/api/v1/static-data', staticData),
     http.get('/api/v1/matches/:region/:matchId', matchDetails),

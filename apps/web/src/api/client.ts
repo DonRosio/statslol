@@ -51,3 +51,16 @@ export async function getJson<T>(
 export async function post(path: string): Promise<void> {
   await send(path, { method: 'POST' });
 }
+
+/** Sends a POST request without a body to the API, and checks its answer against `schema`. */
+export async function postJson<T>(
+  path: string,
+  schema: z.ZodType<T>,
+  signal?: AbortSignal,
+): Promise<T> {
+  const response = await send(path, {
+    method: 'POST',
+    ...(signal !== undefined && { signal }),
+  });
+  return schema.parse(await response.json());
+}

@@ -14,6 +14,7 @@ function game(fields: Partial<ChampionGame> = {}): ChampionGame {
     championName: 'Sylas',
     position: 'MIDDLE',
     result: 'win',
+    placement: null,
     kills: 7,
     deaths: 2,
     assists: 9,
@@ -49,6 +50,7 @@ describe('championRecords', () => {
         assists: 11,
         creepScore: 280,
         durationSeconds: 3600,
+        placementSum: 0,
       },
     ]);
   });
@@ -136,6 +138,22 @@ describe('championStats', () => {
       'Zed',
       'Annie',
     ]);
+  });
+
+  it('averages the places of Arena over the Arena games only', () => {
+    const records = championRecords([
+      game({ queueId: 1700, position: null, placement: 2 }),
+      game({ queueId: 1700, position: null, placement: 5 }),
+      game({ queueId: 420 }),
+    ]);
+
+    const [stats] = championStats(records);
+
+    expect(stats?.games).toBe(3);
+    expect(stats?.averagePlacement).toBe(3.5);
+    expect(
+      championStats(records, { queueIds: new Set([420]) })[0]?.averagePlacement,
+    ).toBeNull();
   });
 
   it('says nothing for no record', () => {

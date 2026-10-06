@@ -5,6 +5,7 @@ export {
   riotLeagueEntrySchema,
   riotMatchIdSchema,
   riotMatchSchema,
+  riotParticipantSchema,
   riotSummonerSchema,
   type Platform,
   type RiotAccount,
@@ -13,6 +14,7 @@ export {
   type RiotClientOptions,
   type RiotLeagueEntry,
   type RiotMatch,
+  type RiotParticipant,
   type RiotSummoner,
 } from './client.ts';
 export { RiotApiError, type RiotApiErrorKind } from './errors.ts';

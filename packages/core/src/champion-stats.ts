@@ -9,6 +9,8 @@ export interface ChampionGame {
   /** TOP, JUNGLE, MIDDLE, BOTTOM or UTILITY; null in modes without positions. */
   readonly position: string | null;
   readonly result: 'win' | 'loss' | 'remake';
+  /** Arena: the place of the team (1 to 6); null in the other modes. */
+  readonly placement: number | null;
   readonly kills: number;
   readonly deaths: number;
   readonly assists: number;
@@ -41,6 +43,7 @@ export function championRecords(
       assists: (record?.assists ?? 0) + game.assists,
       creepScore: (record?.creepScore ?? 0) + game.creepScore,
       durationSeconds: (record?.durationSeconds ?? 0) + game.durationSeconds,
+      placementSum: (record?.placementSum ?? 0) + (game.placement ?? 0),
     });
   }
   return [...records.values()];
@@ -68,6 +71,8 @@ export interface ChampionStats {
   readonly assists: number;
   readonly creepScore: number;
   readonly durationSeconds: number;
+  /** Arena: the average place (1 is the best); null when no game has a place. */
+  readonly averagePlacement: number | null;
   readonly averageKills: number;
   readonly averageDeaths: number;
   readonly averageAssists: number;
@@ -116,9 +121,16 @@ function statsOf(group: readonly ChampionRecord[]): ChampionStats {
       | 'deaths'
       | 'assists'
       | 'creepScore'
-      | 'durationSeconds',
+      | 'durationSeconds'
+      | 'placementSum',
   ) => group.reduce((total, record) => total + record[field], 0);
   const games = sum('games');
+  const placementSum = sum('placementSum');
+  // Only the Arena records carry places, and each of their games has one: the places are
+  // averaged over those games, not over the games of other modes the records may hold.
+  const placedGames = group
+    .filter((record) => record.placementSum > 0)
+    .reduce((total, record) => total + record.games, 0);
   const wins = sum('wins');
   const [kills, deaths, assists, creepScore] = [
     sum('kills'),
@@ -138,6 +150,7 @@ function statsOf(group: readonly ChampionRecord[]): ChampionStats {
     assists,
     creepScore,
     durationSeconds: sum('durationSeconds'),
+    averagePlacement: placedGames === 0 ? null : placementSum / placedGames,
     averageKills: kills / games,
     averageDeaths: deaths / games,
     averageAssists: assists / games,

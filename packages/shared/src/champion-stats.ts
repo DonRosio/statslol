@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { currentSeason, seasonIdSchema } from './seasons.ts';
+
 /**
  * What a player did with a champion, in one mode and one position: the totals of the games
  * (not the averages, which cannot be added up). The site adds these records up as the visitor
@@ -21,13 +23,37 @@ export const championRecordSchema = z.object({
   // Minions and monsters killed.
   creepScore: z.number().int().nonnegative(),
   durationSeconds: z.number().int().nonnegative(),
+  // Arena: the places of the games added up (1 to 6 each, the first is the best); 0 in the
+  // other modes, which have no place.
+  placementSum: z.number().int().nonnegative(),
 });
 
 export type ChampionRecord = z.infer<typeof championRecordSchema>;
 
-/** The records of the matches kept in the database for a player, one per champion, mode and position. */
-export const championRecordsSchema = z.object({
+/** What a player did with each champion in a season, from the games the site has stored. */
+export const championStatsSchema = z.object({
+  season: seasonIdSchema,
   records: z.array(championRecordSchema),
 });
 
-export type ChampionRecords = z.infer<typeof championRecordsSchema>;
+export type ChampionStatsAnswer = z.infer<typeof championStatsSchema>;
+
+/**
+ * The loading of a season's games, which runs on the server. "idle": not started (nothing
+ * known yet); "queued": waiting for the loading of another player to end (the Riot key's
+ * calls are shared); "running": `done` of `total` games are stored; "done": all of them
+ * are (but `failed` that Riot did not give); "failed": the loading stopped for good.
+ */
+export const seasonSyncSchema = z.object({
+  state: z.enum(['idle', 'queued', 'running', 'done', 'failed']),
+  done: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
+  failed: z.number().int().nonnegative(),
+});
+
+export type SeasonSync = z.infer<typeof seasonSyncSchema>;
+
+/** `?season=2026` of the routes; the season in progress when it is left out. */
+export const seasonQuerySchema = z.object({
+  season: seasonIdSchema.default(() => currentSeason(new Date()).id),
+});

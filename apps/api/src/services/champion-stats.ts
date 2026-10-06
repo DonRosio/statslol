@@ -1,8 +1,13 @@
 import { championRecords, type ChampionGame } from '@statslol/core';
-import type { RiotClient, RiotMatch } from '@statslol/riot-client';
-import { isArenaGame, type ChampionRecords } from '@statslol/shared';
+import type { RiotClient } from '@statslol/riot-client';
+import {
+  seasonById,
+  seasonWindow,
+  type ChampionStatsAnswer,
+  type SeasonId,
+} from '@statslol/shared';
 
-import type { MatchStore } from '../db/matches.ts';
+import type { MatchStore, PlayerGame } from '../db/matches.ts';
 import {
   durationSecondsOf,
   placementOf,
@@ -10,76 +15,64 @@ import {
   resultOf,
 } from './match-fields.ts';
 
-/**
- * How many matches the statistics are made of, at most: the most recent ones. A player has
- * a few hundred of them, and each is read whole from the database (about 50 KB).
- */
-export const MAX_STORED_MATCHES = 500;
-
 export interface ChampionStatsService {
   /**
-   * What a player did with each champion, from the matches already stored in the database
-   * (the ones their history loaded): nothing is fetched from Riot, except the account.
-   * Returns null if no account has this Riot ID.
+   * What a player did with each champion in a season, from the games already stored in the
+   * database (the loading of the others is the job of the season sync): nothing is fetched
+   * from Riot, except the account. Returns null if no account has this Riot ID.
    */
-  getRecords(request: {
+  getStats(request: {
     readonly gameName: string;
     readonly tagLine: string;
-  }): Promise<ChampionRecords | null>;
+    readonly season: SeasonId;
+  }): Promise<ChampionStatsAnswer | null>;
 }
 
 export function createChampionStatsService({
   riot,
   store,
   keyGeneration,
+  now = () => new Date(),
 }: {
   readonly riot: Pick<RiotClient, 'getAccountByRiotId'>;
   readonly store: MatchStore;
   readonly keyGeneration: number;
+  readonly now?: () => Date;
 }): ChampionStatsService {
   return {
-    async getRecords({ gameName, tagLine }) {
+    async getStats({ gameName, tagLine, season }) {
       const account = await riot.getAccountByRiotId({ gameName, tagLine });
       if (account === null) return null;
 
-      const matches = await store.findByPuuid(
+      const games = await store.findPlayerGames(
         account.puuid,
         keyGeneration,
-        MAX_STORED_MATCHES,
+        seasonWindow(seasonById(season), now()),
       );
-      return {
-        records: championRecords(
-          matches.flatMap((match) => gameOf(match, account.puuid)),
-        ),
-      };
+      return { season, records: championRecords(games.map(gameOf)) };
     },
   };
 }
 
-/**
- * The game of a match for a player, if it counts for the champion statistics: not an Arena
- * game (it has a tab of its own, and no positions), and the player did play it.
- */
-function gameOf(match: RiotMatch, puuid: string): ChampionGame[] {
-  const player = match.info.participants.find(
-    (participant) => participant.puuid === puuid,
-  );
-  if (player === undefined) return [];
-  const { queueId } = match.info;
-  if (isArenaGame({ queueId, placement: placementOf(player) })) return [];
-
-  return [
-    {
-      queueId,
-      championId: player.championId,
-      championName: player.championName,
-      position: positionOf(player),
-      result: resultOf(player),
-      kills: player.kills,
-      deaths: player.deaths,
-      assists: player.assists,
-      creepScore: player.totalMinionsKilled + player.neutralMinionsKilled,
-      durationSeconds: durationSecondsOf(match.info),
-    },
-  ];
+/** A stored game, as the statistics count it. */
+function gameOf({
+  queueId,
+  gameDuration,
+  gameEndTimestamp,
+  participant,
+}: PlayerGame): ChampionGame {
+  return {
+    queueId,
+    championId: participant.championId,
+    championName: participant.championName,
+    position: positionOf(participant),
+    result: resultOf(participant),
+    placement: placementOf(participant),
+    kills: participant.kills,
+    deaths: participant.deaths,
+    assists: participant.assists,
+    creepScore:
+      participant.totalMinionsKilled + participant.neutralMinionsKilled,
+    durationSeconds: durationSecondsOf({ gameDuration, gameEndTimestamp }),
+  };
 }

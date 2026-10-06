@@ -9,6 +9,7 @@ export const TEST_CONFIG: Config = {
   trustProxy: false,
   riotApiKey: new Secret('RGAPI-test-key'),
   riotKeyGeneration: 1,
+  seasonSyncPaceMs: 0,
   redis: { host: 'localhost', port: 6379, password: new Secret('unused') },
   database: {
     host: 'localhost',

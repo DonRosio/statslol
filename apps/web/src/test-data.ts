@@ -1,12 +1,14 @@
-import type {
-  ChampionRecord,
-  MatchDetails,
-  MatchRanks,
-  MatchParticipant,
-  MatchSummary,
-  PlayerProfile,
-  Rank,
-  StaticData,
+import {
+  currentSeason,
+  type ChampionRecord,
+  type MatchDetails,
+  type MatchParticipant,
+  type MatchRanks,
+  type MatchSummary,
+  type PlayerProfile,
+  type Rank,
+  type SeasonSync,
+  type StaticData,
 } from '@statslol/shared';
 
 // Answers of the API used by the tests (Vitest and Playwright): Hide on bush#KR1, on KR.
@@ -33,11 +35,12 @@ export function championRecord(
     assists: 21,
     creepScore: 540,
     durationSeconds: 5400,
+    placementSum: 0,
     ...fields,
   };
 }
 
-/** Sylas in 2 modes, and Wukong in the top lane: what GET .../champions answers by default. */
+/** Sylas in 3 modes (Arena included), and Wukong in the top lane: what GET .../champions answers by default. */
 export const CHAMPION_RECORDS: ChampionRecord[] = [
   championRecord(),
   championRecord({
@@ -63,7 +66,31 @@ export const CHAMPION_RECORDS: ChampionRecord[] = [
     creepScore: 400,
     durationSeconds: 3600,
   }),
+  // Arena: 2 games, in 2nd and 5th place.
+  championRecord({
+    queueId: 1750,
+    position: null,
+    games: 2,
+    wins: 1,
+    kills: 20,
+    deaths: 8,
+    assists: 6,
+    creepScore: 0,
+    durationSeconds: 2000,
+    placementSum: 7,
+  }),
 ];
+
+/** The season the Champions tab opens on. */
+export const CURRENT_SEASON = currentSeason(new Date());
+
+/** The loading of a season that is over, with all the games. */
+export const SYNC_DONE: SeasonSync = {
+  state: 'done',
+  done: 8,
+  total: 8,
+  failed: 0,
+};
 
 export const PROFILE: PlayerProfile = {
   riotId: { gameName: 'Hide on bush', tagLine: 'KR1' },

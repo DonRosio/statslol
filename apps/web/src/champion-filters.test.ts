@@ -2,16 +2,18 @@ import type { ChampionRecord } from '@statslol/shared';
 import { describe, expect, it } from 'vitest';
 
 import {
+  hasRoles,
   matchesSearch,
-  positionOptions,
-  queueOptions,
+  queueIdsOf,
+  QUEUE_FILTERS,
+  ROLES,
 } from './champion-filters.ts';
 
-function record(fields: Partial<ChampionRecord> = {}): ChampionRecord {
+function record(queueId: number): ChampionRecord {
   return {
     championId: 517,
     championName: 'Sylas',
-    queueId: 420,
+    queueId,
     position: 'MIDDLE',
     games: 1,
     wins: 1,
@@ -20,52 +22,62 @@ function record(fields: Partial<ChampionRecord> = {}): ChampionRecord {
     assists: 1,
     creepScore: 100,
     durationSeconds: 1800,
-    ...fields,
+    placementSum: 0,
   };
 }
 
-describe('queueOptions', () => {
-  it('lists the modes with games, the most played first', () => {
-    const options = queueOptions([
-      record({ queueId: 420, games: 2 }),
-      record({ queueId: 450, games: 5, position: null }),
-      record({ queueId: 440, games: 2 }),
-    ]);
-
-    expect(options.map((option) => [option.name, option.games])).toEqual([
-      ['ARAM', 5],
-      ['Flex', 2],
-      ['Solo/Duo', 2],
+describe('the choices', () => {
+  it('are the roles of the map after "all roles"', () => {
+    expect(ROLES.map((role) => role.id)).toEqual([
+      'ALL',
+      'TOP',
+      'JUNGLE',
+      'MIDDLE',
+      'BOTTOM',
+      'UTILITY',
     ]);
   });
 
-  it('puts the queues that share a name in one option', () => {
-    const [normal, ...others] = queueOptions([
-      record({ queueId: 400, games: 3 }),
-      record({ queueId: 430, games: 4 }),
+  it('are the modes of the page, "all" first', () => {
+    expect(QUEUE_FILTERS.map((queue) => queue.label)).toEqual([
+      'All',
+      'Solo/Duo',
+      'Normal draft',
+      'Flex',
+      'Arena',
+      'ARAM',
     ]);
-
-    expect(others).toEqual([]);
-    expect(normal?.name).toBe('Normal');
-    expect(normal?.games).toBe(7);
-    expect([...(normal?.queueIds ?? [])].sort()).toEqual([400, 430]);
-  });
-
-  it('lists nothing for no record', () => {
-    expect(queueOptions([])).toEqual([]);
   });
 });
 
-describe('positionOptions', () => {
-  it('lists the positions with games, in the order of the map, without duplicates', () => {
-    expect(
-      positionOptions([
-        record({ position: 'UTILITY' }),
-        record({ position: null }),
-        record({ position: 'TOP' }),
-        record({ position: 'UTILITY', queueId: 440 }),
-      ]),
-    ).toEqual(['TOP', 'UTILITY']);
+describe('hasRoles', () => {
+  it.each([
+    ['all', true],
+    ['solo', true],
+    ['normal', true],
+    ['flex', true],
+    ['arena', false],
+    ['aram', false],
+  ] as const)('%s: %s', (queue, expected) => {
+    expect(hasRoles(queue)).toBe(expected);
+  });
+});
+
+describe('queueIdsOf', () => {
+  const records = [record(420), record(430), record(450), record(1700)];
+
+  it('is every mode but Arena for "all": the ones the records have', () => {
+    expect([...queueIdsOf('all', records)].sort()).toEqual([420, 430, 450]);
+  });
+
+  it.each([
+    ['solo', [420]],
+    ['normal', [400]],
+    ['flex', [440]],
+    ['aram', [450]],
+    ['arena', [1700, 1710, 1750]],
+  ] as const)('is the queues of %s', (queue, queueIds) => {
+    expect([...queueIdsOf(queue, records)].sort()).toEqual(queueIds);
   });
 });
 

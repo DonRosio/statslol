@@ -85,7 +85,9 @@ export function subteamOf(player: RiotParticipant): number | null {
  * Riot's advice for gameDuration: in milliseconds when there is no gameEndTimestamp
  * (matches before patch 11.20, in 2021), in seconds otherwise.
  */
-export function durationSecondsOf(info: RiotMatch['info']): number {
+export function durationSecondsOf(
+  info: Pick<RiotMatch['info'], 'gameDuration' | 'gameEndTimestamp'>,
+): number {
   return info.gameEndTimestamp === undefined
     ? Math.round(info.gameDuration / 1000)
     : info.gameDuration;

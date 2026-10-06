@@ -1,8 +1,11 @@
 export {
   championRecordSchema,
-  championRecordsSchema,
+  championStatsSchema,
+  seasonQuerySchema,
+  seasonSyncSchema,
   type ChampionRecord,
-  type ChampionRecords,
+  type ChampionStatsAnswer,
+  type SeasonSync,
 } from './champion-stats.ts';
 export { healthSchema, type Health } from './health.ts';
 export {
@@ -41,7 +44,16 @@ export {
   type Rank,
   type Tier,
 } from './player-profile.ts';
-export { isArenaGame } from './queues.ts';
+export { ARENA_QUEUE_IDS, isArenaGame } from './queues.ts';
+export {
+  currentSeason,
+  seasonById,
+  seasonIdSchema,
+  seasonWindow,
+  SEASONS,
+  type Season,
+  type SeasonId,
+} from './seasons.ts';
 export { REFRESH_COOLDOWN_SECONDS } from './refresh.ts';
 export { DEFAULT_REGION, regionSchema, type Region } from './region.ts';
 export {

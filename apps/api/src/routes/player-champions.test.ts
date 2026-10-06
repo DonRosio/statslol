@@ -14,6 +14,8 @@ const ACCOUNT: RiotAccount = {
 };
 
 const CHAMPIONS = '/api/v1/players/kr/Hide%20on%20bush/KR1/champions';
+// The test matches started on 3 October 2026: in Season 16.
+const SEASON = `${CHAMPIONS}?season=2026`;
 
 /** An app whose database holds these matches (stored with the key generation of the config). */
 async function setUp(matches: ReturnType<typeof fakeMatch>[]) {
@@ -48,7 +50,7 @@ function match(
 }
 
 describe('GET /api/v1/players/:region/:name/:tag/champions', () => {
-  it('adds up the stored matches of the player, by champion, mode and position', async () => {
+  it('adds up the stored matches of the season, by champion, mode and position', async () => {
     const { app } = await setUp([
       match('KR_1', 420),
       match('KR_2', 420, { win: false, kills: 1, deaths: 5, assists: 2 }),
@@ -59,9 +61,10 @@ describe('GET /api/v1/players/:region/:name/:tag/champions', () => {
       }),
     ]);
 
-    const response = await app.inject({ method: 'GET', url: CHAMPIONS });
+    const response = await app.inject({ method: 'GET', url: SEASON });
 
     expect(response.statusCode).toBe(200);
+    expect(response.json<{ season: string }>().season).toBe('2026');
     expect(response.json<{ records: unknown[] }>().records).toEqual([
       {
         championId: 517,
@@ -75,6 +78,7 @@ describe('GET /api/v1/players/:region/:name/:tag/champions', () => {
         assists: 11,
         creepScore: 384,
         durationSeconds: 3668,
+        placementSum: 0,
       },
       {
         championId: 99,
@@ -88,23 +92,79 @@ describe('GET /api/v1/players/:region/:name/:tag/champions', () => {
         assists: 9,
         creepScore: 192,
         durationSeconds: 1834,
+        placementSum: 0,
       },
     ]);
   });
 
-  it('leaves out the remakes and the Arena games', async () => {
+  it('leaves out the remakes, and counts the Arena games with their place', async () => {
     const { app } = await setUp([
       match('KR_1', 420, { gameEndedInEarlySurrender: true }),
       match('KR_2', 1700, { placement: 2, teamPosition: '' }),
-      match('KR_3', 420),
+      match('KR_3', 1700, { placement: 5, teamPosition: '' }),
+      match('KR_4', 420),
     ]);
+
+    const response = await app.inject({ method: 'GET', url: SEASON });
+
+    expect(
+      response
+        .json<{
+          records: { queueId: number; games: number; placementSum: number }[];
+        }>()
+        .records.map(({ queueId, games, placementSum }) => [
+          queueId,
+          games,
+          placementSum,
+        ]),
+    ).toEqual([
+      [1700, 2, 7],
+      [420, 1, 0],
+    ]);
+  });
+
+  it('leaves out the matches before the season', async () => {
+    const before = match('KR_1', 420);
+    const { app } = await setUp([
+      {
+        ...before,
+        info: {
+          ...before.info,
+          gameStartTimestamp: Date.UTC(2025, 11, 31),
+        },
+      },
+      match('KR_2', 420),
+    ]);
+
+    const response = await app.inject({ method: 'GET', url: SEASON });
+
+    expect(
+      response.json<{ records: { games: number }[] }>().records[0]?.games,
+    ).toBe(1);
+  });
+
+  it('answers the season in progress when none is asked', async () => {
+    const { app } = await setUp([match('KR_1', 420)]);
 
     const response = await app.inject({ method: 'GET', url: CHAMPIONS });
 
-    expect(response.json<{ records: { games: number }[] }>().records).toEqual([
-      expect.objectContaining({ games: 1 }),
-    ]);
+    expect(response.json<{ season: string }>().season).toBe('2026');
   });
+
+  it.each(['2026-3', '2027', 'x'])(
+    'answers 400 for the season %s, without calling Riot',
+    async (season) => {
+      const { riot, app } = await setUp([]);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `${CHAMPIONS}?season=${season}`,
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(riot.getAccountByRiotId).not.toHaveBeenCalled();
+    },
+  );
 
   it('leaves out the matches of other players, and answers nothing for no match', async () => {
     const other = fakeMatch('KR_1');
@@ -115,16 +175,16 @@ describe('GET /api/v1/players/:region/:name/:tag/champions', () => {
       },
     ]);
 
-    const response = await app.inject({ method: 'GET', url: CHAMPIONS });
+    const response = await app.inject({ method: 'GET', url: SEASON });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ records: [] });
+    expect(response.json()).toEqual({ season: '2026', records: [] });
   });
 
   it('never calls Riot for a match', async () => {
     const { riot, app } = await setUp([match('KR_1', 420)]);
 
-    await app.inject({ method: 'GET', url: CHAMPIONS });
+    await app.inject({ method: 'GET', url: SEASON });
 
     expect(riot.getMatch).not.toHaveBeenCalled();
   });
@@ -133,7 +193,7 @@ describe('GET /api/v1/players/:region/:name/:tag/champions', () => {
     const { riot, app } = await setUp([]);
     riot.getAccountByRiotId.mockResolvedValue(null);
 
-    const response = await app.inject({ method: 'GET', url: CHAMPIONS });
+    const response = await app.inject({ method: 'GET', url: SEASON });
 
     expect(response.statusCode).toBe(404);
   });

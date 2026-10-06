@@ -1,10 +1,12 @@
 import {
-  championRecordsSchema,
+  championStatsSchema,
+  seasonSyncSchema,
   matchHistorySchema,
   playerProfileSchema,
   type MatchHistory,
   type MatchSummary,
   type PlayerParams,
+  type SeasonId,
 } from '@statslol/shared';
 import {
   infiniteQueryOptions,
@@ -13,7 +15,7 @@ import {
 } from '@tanstack/react-query';
 import { generatePath } from 'react-router';
 
-import { getJson, post } from './client.ts';
+import { getJson, post, postJson } from './client.ts';
 
 /**
  * URL of a player in the API, e.g. /api/v1/players/kr/Hide%20on%20bush/KR1. Each part is
@@ -62,24 +64,58 @@ export function matchHistoryQuery(player: PlayerParams) {
   });
 }
 
+/** Start of the cache keys of the champion statistics of a player, whatever the season. */
+function championsKey(player: PlayerParams) {
+  return [...playerKey(player), 'champions'] as const;
+}
+
 /**
- * GET /api/v1/players/:region/:name/:tag/champions: what the player did with each champion,
- * added up from the matches stored on the site (the ones their history loaded), by mode and
- * position.
+ * GET /api/v1/players/:region/:name/:tag/champions?season=: what the player did with each
+ * champion in a season, by mode and position, from the games the site has stored (the
+ * loading of the others is `seasonSyncQuery`'s).
  */
-export function championStatsQuery(player: PlayerParams) {
+export function championStatsQuery(player: PlayerParams, season: SeasonId) {
   return queryOptions({
-    queryKey: [...playerKey(player), 'champions'],
+    queryKey: [...championsKey(player), season],
     queryFn: ({ signal }) =>
       getJson(
-        `${playerApiPath(player)}/champions`,
-        championRecordsSchema,
+        `${playerApiPath(player)}/champions?${new URLSearchParams({ season }).toString()}`,
+        championStatsSchema,
         signal,
       ),
-    // Cheap to ask (the API only reads its database), and the history grows the stored
-    // matches: the tab asks again each time it opens.
+    // Cheap to ask (the API only reads its database), and the games keep coming while the
+    // season loads: the tab asks again each time it opens.
     staleTime: 0,
   });
+}
+
+/**
+ * GET /api/v1/players/:region/:name/:tag/champions/sync?season=: how the loading of the
+ * season's games is going on the server.
+ */
+export function seasonSyncQuery(player: PlayerParams, season: SeasonId) {
+  return queryOptions({
+    queryKey: [...championsKey(player), season, 'sync'],
+    queryFn: ({ signal }) =>
+      getJson(
+        `${playerApiPath(player)}/champions/sync?${new URLSearchParams({ season }).toString()}`,
+        seasonSyncSchema,
+        signal,
+      ),
+    staleTime: 0,
+  });
+}
+
+/**
+ * POST /api/v1/players/:region/:name/:tag/champions/sync?season=: asks the server to load
+ * the games of the season it does not have yet. It answers at once with how it is going;
+ * asking again while it runs (or just after) changes nothing.
+ */
+export function startSeasonSync(player: PlayerParams, season: SeasonId) {
+  return postJson(
+    `${playerApiPath(player)}/champions/sync?${new URLSearchParams({ season }).toString()}`,
+    seasonSyncSchema,
+  );
 }
 
 /**

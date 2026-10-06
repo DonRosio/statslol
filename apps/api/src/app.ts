@@ -28,6 +28,7 @@ import { staticDataRoutes } from './routes/static-data.ts';
 import { createChampionStatsService } from './services/champion-stats.ts';
 import { createMatchHistoryService } from './services/match-history.ts';
 import { createMatchLoader } from './services/match-loader.ts';
+import { createSeasonSyncService } from './services/season-sync.ts';
 import { createMatchRanksService } from './services/match-ranks.ts';
 import { zodSerializerCompiler, zodValidatorCompiler } from './zod.ts';
 
@@ -163,6 +164,14 @@ export function buildApp(
       riot: cachedRiot,
       store: matchStore,
       keyGeneration: config.riotKeyGeneration,
+    }),
+    seasonSync: createSeasonSyncService({
+      riot: cachedRiot,
+      matches,
+      store: matchStore,
+      keyGeneration: config.riotKeyGeneration,
+      paceMs: config.seasonSyncPaceMs,
+      log: app.log,
     }),
     cache,
   });

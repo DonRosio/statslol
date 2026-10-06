@@ -9,6 +9,8 @@ const ACCOUNT_ROUTE = 'europe';
 
 const DEFAULT_TIMEOUT_MS = 5000;
 const DEFAULT_MAX_QUEUE_WAIT_MS = 3000;
+// A date in seconds since 1970 sent to Riot: year 2100 at the latest.
+const MAX_SECONDS = 4_102_444_800;
 
 /** Riot's platforms: one per League of Legends server, each with its own API host. */
 export const PLATFORMS = [
@@ -94,7 +96,7 @@ const riotObjectiveSchema = z.looseObject({
 
 // A match holds about 150 fields per player: only the ones the API uses are checked. The
 // others are kept as they are (looseObject), so that a stored match keeps all of Riot's data.
-const riotParticipantSchema = z.looseObject({
+export const riotParticipantSchema = z.looseObject({
   // Not used in URLs: only compared with the PUUID of the player looked up.
   puuid: z.string(),
   // 1 to 10 (1 to 18 in Arena): the place of the player in the lists of the match.
@@ -204,6 +206,7 @@ export type RiotLeagueEntry = Readonly<z.output<typeof riotLeagueEntrySchema>>;
 
 /** A finished match (MatchDto of match-v5), with every field Riot sent. */
 export type RiotMatch = z.output<typeof riotMatchSchema>;
+export type RiotParticipant = z.output<typeof riotParticipantSchema>;
 
 export interface RiotClientOptions {
   readonly apiKey: string;
@@ -269,11 +272,18 @@ export interface RiotClient {
   /**
    * Gets the IDs of a player's matches in the region of a platform, the most recent first:
    * `count` of them (at most 100), skipping the first `start`. An empty list past the end.
+   * With `startTime` and/or `endTime` (in seconds since 1970): only the matches that started
+   * in that period.
    */
   getMatchIdsByPuuid(
     platform: Platform,
     puuid: string,
-    page: { readonly start: number; readonly count: number },
+    page: {
+      readonly start: number;
+      readonly count: number;
+      readonly startTime?: number;
+      readonly endTime?: number;
+    },
   ): Promise<string[]>;
 
   /** Gets a match, from the region of a platform. Returns null if Riot does not have it. */
@@ -354,11 +364,21 @@ export function createRiotClient({
       return (await get(request, z.array(riotLeagueEntrySchema))) ?? [];
     },
 
-    async getMatchIdsByPuuid(platform, puuid, { start, count }) {
+    async getMatchIdsByPuuid(
+      platform,
+      puuid,
+      { start, count, startTime, endTime },
+    ) {
       const query = new URLSearchParams({
         start: String(checkInteger(start, 0, Number.MAX_SAFE_INTEGER)),
         count: String(checkInteger(count, 0, 100)),
       });
+      if (startTime !== undefined) {
+        query.set('startTime', String(checkInteger(startTime, 0, MAX_SECONDS)));
+      }
+      if (endTime !== undefined) {
+        query.set('endTime', String(checkInteger(endTime, 0, MAX_SECONDS)));
+      }
       const request = {
         route: MATCH_ROUTE_BY_PLATFORM[checkPlatform(platform)],
         method: 'match-v5.getMatchIdsByPUUID',

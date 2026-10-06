@@ -1,6 +1,6 @@
 import type { RiotMatch } from '@statslol/riot-client';
 
-import type { MatchStore } from './matches.ts';
+import type { MatchStore, PlayerGame } from './matches.ts';
 
 /** Match store in memory, for the tests that do not need PostgreSQL. */
 export class MemoryMatchStore implements MatchStore {
@@ -21,20 +21,39 @@ export class MemoryMatchStore implements MatchStore {
     return Promise.resolve(found);
   }
 
-  findByPuuid(
+  findPlayerGames(
     puuid: string,
     keyGeneration: number,
-    limit: number,
-  ): Promise<RiotMatch[]> {
-    const found = [...this.rows.values()]
+    { fromMs, toMs }: { readonly fromMs: number; readonly toMs: number },
+  ): Promise<PlayerGame[]> {
+    const games = [...this.rows.values()]
       .filter(
-        (row) =>
-          row.keyGeneration === keyGeneration &&
-          row.match.metadata.participants?.includes(puuid) === true,
+        ({ match, keyGeneration: stored }) =>
+          stored === keyGeneration &&
+          match.metadata.participants?.includes(puuid) === true &&
+          match.info.gameStartTimestamp >= fromMs &&
+          match.info.gameStartTimestamp < toMs,
       )
-      .map((row) => row.match)
-      .sort((a, b) => b.info.gameStartTimestamp - a.info.gameStartTimestamp);
-    return Promise.resolve(found.slice(0, limit));
+      .sort(
+        (a, b) =>
+          b.match.info.gameStartTimestamp - a.match.info.gameStartTimestamp,
+      )
+      .flatMap(({ match }) => {
+        const participant = match.info.participants.find(
+          (candidate) => candidate.puuid === puuid,
+        );
+        return participant === undefined
+          ? []
+          : [
+              {
+                queueId: match.info.queueId,
+                gameDuration: match.info.gameDuration,
+                gameEndTimestamp: match.info.gameEndTimestamp,
+                participant,
+              },
+            ];
+      });
+    return Promise.resolve(games);
   }
 
   save(match: RiotMatch, keyGeneration: number): Promise<void> {

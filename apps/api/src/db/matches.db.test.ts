@@ -75,38 +75,84 @@ describe('match store', () => {
   });
 });
 
-describe('match store, by player', () => {
-  /** A match played by these PUUIDs, started at this time (ms): a larger number is more recent. */
+describe('match store, games of a player', () => {
+  /** A match of these PUUIDs, started at this time (ms): a larger number is more recent. */
   function played(id: string, startedAt: number, puuids: string[]) {
     const match = fakeMatch(id);
+    const [first, ...others] = match.info.participants;
     return {
       ...match,
       metadata: { ...match.metadata, participants: puuids },
-      info: { ...match.info, gameStartTimestamp: startedAt },
-    };
+      info: {
+        ...match.info,
+        gameStartTimestamp: startedAt,
+        // The first participant is the one the test looks for.
+        participants: [{ ...first, puuid: puuids[0] ?? 'nobody' }, ...others],
+      },
+    } as ReturnType<typeof fakeMatch>;
   }
 
-  it('finds the matches of a player, the most recent first, up to the limit', async () => {
+  const ALL_TIME = { fromMs: 0, toMs: 9_999_999_999_999 };
+
+  async function ids(puuid: string, period = ALL_TIME, generation = 1) {
+    const games = await store.findPlayerGames(puuid, generation, period);
+    return games.map((game) => game.participant.championName);
+  }
+
+  it('gives the line of the player in each of their matches, the most recent first', async () => {
     await store.save(played('EUW1_101', 1000, ['a', 'b']), 1);
-    await store.save(played('EUW1_102', 3000, ['b', 'c']), 1);
-    await store.save(played('EUW1_103', 2000, ['b', 'd']), 1);
-    await store.save(played('EUW1_104', 4000, ['a', 'c']), 1);
+    await store.save(played('EUW1_102', 3000, ['a', 'c']), 1);
+    await store.save(played('EUW1_103', 2000, ['d', 'a']), 1);
 
-    const ids = async (puuid: string, limit: number) =>
-      (await store.findByPuuid(puuid, 1, limit)).map((m) => m.metadata.matchId);
+    const games = await store.findPlayerGames('a', 1, ALL_TIME);
 
-    expect(await ids('b', 10)).toEqual(['EUW1_102', 'EUW1_103', 'EUW1_101']);
-    expect(await ids('b', 2)).toEqual(['EUW1_102', 'EUW1_103']);
-    expect(await ids('a', 10)).toEqual(['EUW1_104', 'EUW1_101']);
-    expect(await ids('nobody', 10)).toEqual([]);
+    // 103 lists 'd' first, so its first participant is not 'a': only 101 and 102 hold a
+    // line with puuid 'a'.
+    expect(games.map((game) => game.queueId)).toEqual([420, 420]);
+    expect(games[0]?.participant).toMatchObject({
+      puuid: 'a',
+      championName: 'Sylas',
+      kills: 7,
+    });
+    expect(games[0]?.gameDuration).toBe(1834);
+    expect(games[0]?.gameEndTimestamp).toBeGreaterThan(0);
+    expect(await ids('nobody')).toEqual([]);
+  });
+
+  it('keeps the matches that started inside the period, the start included and the end excluded', async () => {
+    await store.save(played('EUW1_111', 1000, ['p']), 1);
+    await store.save(played('EUW1_112', 2000, ['p']), 1);
+    await store.save(played('EUW1_113', 3000, ['p']), 1);
+
+    const inPeriod = await store.findPlayerGames('p', 1, {
+      fromMs: 2000,
+      toMs: 3000,
+    });
+
+    expect(inPeriod).toHaveLength(1);
+    expect(
+      (await store.findPlayerGames('p', 1, { fromMs: 0, toMs: 9_999 })).length,
+    ).toBe(3);
   });
 
   it('leaves out the matches of another key generation', async () => {
-    await store.save(played('EUW1_201', 5000, ['gen']), 1);
-    await store.save(played('EUW1_202', 6000, ['gen']), 2);
+    await store.save(played('EUW1_121', 5000, ['gen']), 1);
+    await store.save(played('EUW1_122', 6000, ['gen']), 2);
 
-    const found = await store.findByPuuid('gen', 1, 10);
+    expect(await store.findPlayerGames('gen', 1, ALL_TIME)).toHaveLength(1);
+    expect(await store.findPlayerGames('gen', 2, ALL_TIME)).toHaveLength(1);
+    expect(await store.findPlayerGames('gen', 3, ALL_TIME)).toHaveLength(0);
+  });
 
-    expect(found.map((m) => m.metadata.matchId)).toEqual(['EUW1_201']);
+  it('uses the index of the players of a match', async () => {
+    await withClient(database.owner, async (client) => {
+      await client.query('SET enable_seqscan = off');
+      const plan = await client.query<{ 'QUERY PLAN': string }>(
+        `EXPLAIN SELECT id FROM matches WHERE data -> 'metadata' -> 'participants' @> '["x"]'::jsonb`,
+      );
+      expect(plan.rows.map((row) => row['QUERY PLAN']).join('\n')).toContain(
+        'matches_participants_idx',
+      );
+    });
   });
 });

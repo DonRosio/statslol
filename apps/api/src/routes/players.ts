@@ -1,8 +1,10 @@
 import {
-  championRecordsSchema,
+  championStatsSchema,
   matchHistorySchema,
   playerParamsSchema,
   playerProfileSchema,
+  seasonQuerySchema,
+  seasonSyncSchema,
 } from '@statslol/shared';
 import type { FastifyPluginCallback } from 'fastify';
 import { z } from 'zod';
@@ -10,6 +12,7 @@ import { z } from 'zod';
 import type { Cache } from '../cache/cache.ts';
 import type { CachedRiotClient } from '../cache/riot-client.ts';
 import { HttpError } from '../errors.ts';
+import type { SeasonSyncService } from '../services/season-sync.ts';
 import type { ChampionStatsService } from '../services/champion-stats.ts';
 import type { MatchHistoryService } from '../services/match-history.ts';
 import { getPlayerProfile } from '../services/player-profile.ts';
@@ -20,6 +23,7 @@ export interface PlayerRoutesOptions {
   readonly riot: CachedRiotClient;
   readonly matchHistory: MatchHistoryService;
   readonly championStats: ChampionStatsService;
+  readonly seasonSync: SeasonSyncService;
   readonly cache: Cache;
 }
 
@@ -30,7 +34,7 @@ const matchHistoryQuerySchema = z.object({
 
 export const playerRoutes: FastifyPluginCallback<PlayerRoutesOptions> = (
   app,
-  { riot, matchHistory, championStats, cache },
+  { riot, matchHistory, championStats, seasonSync, cache },
   done,
 ) => {
   const routes = app.withTypeProvider<ZodTypeProvider>();
@@ -92,22 +96,78 @@ export const playerRoutes: FastifyPluginCallback<PlayerRoutesOptions> = (
     {
       schema: {
         params: playerParamsSchema,
-        response: { 200: championRecordsSchema },
+        querystring: seasonQuerySchema,
+        response: { 200: championStatsSchema },
       },
-      // Reads the database only (and the cached account): no call to Riot, but a few
-      // hundred matches to read.
-      config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
+      // Reads the database only (and the cached account): no call to Riot. The page asks
+      // again every few seconds while a season is loading.
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
     },
     async (request) => {
       const { name, tag } = request.params;
-      const records = await championStats.getRecords({
+      const stats = await championStats.getStats({
         gameName: name,
         tagLine: tag,
+        season: request.query.season,
       });
-      if (records === null) {
+      if (stats === null) {
         throw new HttpError(404, 'No player with this Riot ID');
       }
-      return records;
+      return stats;
+    },
+  );
+
+  routes.get(
+    '/players/:region/:name/:tag/champions/sync',
+    {
+      schema: {
+        params: playerParamsSchema,
+        querystring: seasonQuerySchema,
+        response: { 200: seasonSyncSchema },
+      },
+      // Reads a counter in memory (and the cached account); the page asks every 2 seconds.
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    },
+    async (request) => {
+      const { region, name, tag } = request.params;
+      const status = await seasonSync.status({
+        region,
+        gameName: name,
+        tagLine: tag,
+        season: request.query.season,
+      });
+      if (status === null) {
+        throw new HttpError(404, 'No player with this Riot ID');
+      }
+      return status;
+    },
+  );
+
+  routes.post(
+    '/players/:region/:name/:tag/champions/sync',
+    {
+      schema: {
+        params: playerParamsSchema,
+        querystring: seasonQuerySchema,
+        response: { 200: seasonSyncSchema },
+      },
+      // Starts a loading that costs hundreds of calls to Riot, one at a time and paced: a
+      // loading already queued or running is not started again, and one that ended less
+      // than 2 minutes ago neither.
+      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    },
+    async (request) => {
+      const { region, name, tag } = request.params;
+      const status = await seasonSync.start({
+        region,
+        gameName: name,
+        tagLine: tag,
+        season: request.query.season,
+      });
+      if (status === null) {
+        throw new HttpError(404, 'No player with this Riot ID');
+      }
+      return status;
     },
   );
 

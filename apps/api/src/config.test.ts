@@ -41,6 +41,7 @@ describe('loadConfig', () => {
       // Nobody may give the address of the client: it is the address of the connection.
       trustProxy: false,
       riotKeyGeneration: 1,
+      seasonSyncPaceMs: 2000,
       redis: { host: 'localhost', port: 6379 },
       // The role of the API, which can only read and write rows.
       database: {
@@ -67,6 +68,7 @@ describe('loadConfig', () => {
         POSTGRES_HOST: 'postgres',
         POSTGRES_PORT: '5433',
         RIOT_KEY_GENERATION: '2',
+        SEASON_SYNC_PACE_MS: '500',
         TRUST_PROXY: '172.30.250.1',
       }),
     );
@@ -77,6 +79,7 @@ describe('loadConfig', () => {
       logLevel: 'debug',
       trustProxy: ['172.30.250.1'],
       riotKeyGeneration: 2,
+      seasonSyncPaceMs: 500,
       redis: { host: 'redis', port: 6380 },
       database: { host: 'postgres', port: 5433 },
     });
@@ -93,6 +96,7 @@ describe('loadConfig', () => {
       'redis',
       'riotApiKey',
       'riotKeyGeneration',
+      'seasonSyncPaceMs',
       'trustProxy',
     ]);
   });
@@ -146,6 +150,15 @@ describe('loadConfig', () => {
           loadConfig({ ...REQUIRED, RIOT_KEY_GENERATION: generation }),
         ),
       ).toContain('RIOT_KEY_GENERATION');
+    },
+  );
+
+  it.each(['-1', '1.5', 'slow', '60001'])(
+    'rejects SEASON_SYNC_PACE_MS=%s',
+    (pace) => {
+      expect(
+        expectInvalid(loadConfig({ ...REQUIRED, SEASON_SYNC_PACE_MS: pace })),
+      ).toContain('SEASON_SYNC_PACE_MS');
     },
   );
 

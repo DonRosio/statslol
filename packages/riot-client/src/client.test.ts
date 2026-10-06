@@ -495,6 +495,50 @@ describe('getMatchIdsByPuuid', () => {
     },
   );
 
+  it('asks only for the matches of a period, when it is given', async () => {
+    let url: URL | undefined;
+    server.use(
+      http.get(
+        'https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/:puuid/ids',
+        ({ request }) => {
+          url = new URL(request.url);
+          return HttpResponse.json([]);
+        },
+      ),
+    );
+
+    await client.getMatchIdsByPuuid('euw1', ACCOUNT.puuid, {
+      start: 0,
+      count: 100,
+      startTime: 1_788_000_000,
+      endTime: 1_791_000_000,
+    });
+
+    expect(url?.searchParams.get('startTime')).toBe('1788000000');
+    expect(url?.searchParams.get('endTime')).toBe('1791000000');
+  });
+
+  it('sends no period when none is given', async () => {
+    let url: URL | undefined;
+    server.use(
+      http.get(
+        'https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/:puuid/ids',
+        ({ request }) => {
+          url = new URL(request.url);
+          return HttpResponse.json([]);
+        },
+      ),
+    );
+
+    await client.getMatchIdsByPuuid('euw1', ACCOUNT.puuid, {
+      start: 0,
+      count: 10,
+    });
+
+    expect(url?.searchParams.has('startTime')).toBe(false);
+    expect(url?.searchParams.has('endTime')).toBe(false);
+  });
+
   it('reports a match ID that could change a URL as unexpected', async () => {
     server.use(
       http.get(
@@ -513,6 +557,8 @@ describe('getMatchIdsByPuuid', () => {
     { start: -1, count: 10 },
     { start: 1.5, count: 10 },
     { start: 0, count: 101 },
+    { start: 0, count: 10, startTime: -1 },
+    { start: 0, count: 10, endTime: 1.5 },
   ])('refuses the page %j, without calling Riot', async (page) => {
     await expect(
       client.getMatchIdsByPuuid('euw1', ACCOUNT.puuid, page),
