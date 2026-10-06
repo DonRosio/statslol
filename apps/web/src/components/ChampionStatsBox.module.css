@@ -1,0 +1,128 @@
+/* A box like the ranks' and the match history's, around the filters and the table. */
+.box {
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background-color: var(--color-box);
+  background-image: var(--highlight);
+  box-shadow: inset 0 1px 0 var(--color-highlight-edge);
+}
+
+/* Height of a few rows of the table. */
+.placeholder {
+  height: 12rem;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.filters input {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+.note,
+.empty {
+  margin: 0 0 0.75rem;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+
+.empty {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+/* The table is laid out by the width of its own box, not the window's: on a narrow one the
+   champion takes a line, and the numbers share the next one (no horizontal scroll). */
+.table {
+  container-type: inline-size;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.5rem 0.25rem;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.8125rem;
+  line-height: 1.25;
+}
+
+.row:hover {
+  background-color: var(--color-hover);
+}
+
+.head {
+  padding-block: 0.25rem;
+  border-top: 0;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+
+.head:hover {
+  background-color: transparent;
+}
+
+.row > [role='cell'] {
+  display: flex;
+  flex-direction: column;
+}
+
+.row > .champion {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.name {
+  overflow: hidden;
+  font-weight: bold;
+  font-size: 0.875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.small {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+
+.strong {
+  font-weight: bold;
+}
+
+/* The win rate: blue from half of the games won, orange under. */
+.rateWon,
+.rateLost {
+  font-weight: bold;
+}
+
+.rateWon {
+  color: var(--color-win-text);
+}
+
+.rateLost {
+  color: var(--color-loss-text);
+}
+
+@container (width < 28rem) {
+  .row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .row > :first-child {
+    grid-column: 1 / -1;
+  }
+
+  /* The headers repeat what each number is: the champion's one is not needed. */
+  .head > :first-child {
+    display: none;
+  }
+}

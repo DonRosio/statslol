@@ -1,4 +1,5 @@
 import type {
+  ChampionRecord,
   MatchDetails,
   MatchRanks,
   MatchParticipant,
@@ -15,6 +16,54 @@ export const PLAYER_PAGE_PATH = '/players/kr/Hide%20on%20bush/KR1';
 
 /** URL of the player in the API. */
 export const PLAYER_API_PATH = '/api/v1/players/kr/Hide%20on%20bush/KR1';
+
+/** What the player did with a champion: 3 ranked games as Sylas in mid lane, 2 of them won. */
+export function championRecord(
+  fields: Partial<ChampionRecord> = {},
+): ChampionRecord {
+  return {
+    championId: 517,
+    championName: 'Sylas',
+    queueId: 420,
+    position: 'MIDDLE',
+    games: 3,
+    wins: 2,
+    kills: 15,
+    deaths: 6,
+    assists: 21,
+    creepScore: 540,
+    durationSeconds: 5400,
+    ...fields,
+  };
+}
+
+/** Sylas in 2 modes, and Wukong in the top lane: what GET .../champions answers by default. */
+export const CHAMPION_RECORDS: ChampionRecord[] = [
+  championRecord(),
+  championRecord({
+    queueId: 450,
+    position: null,
+    games: 1,
+    wins: 0,
+    kills: 4,
+    deaths: 9,
+    assists: 10,
+    creepScore: 60,
+    durationSeconds: 1200,
+  }),
+  championRecord({
+    championId: 62,
+    championName: 'MonkeyKing',
+    position: 'TOP',
+    games: 2,
+    wins: 2,
+    kills: 12,
+    deaths: 3,
+    assists: 8,
+    creepScore: 400,
+    durationSeconds: 3600,
+  }),
+];
 
 export const PROFILE: PlayerProfile = {
   riotId: { gameName: 'Hide on bush', tagLine: 'KR1' },

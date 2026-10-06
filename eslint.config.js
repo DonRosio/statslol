@@ -30,10 +30,14 @@ export default defineConfig(
     extends: [reactHooks.configs.flat.recommended],
   },
   {
-    // Code that runs in the browser, and the package it shares with the API, must never
+    // Code that runs in the browser, and the packages it shares with the API, must never
     // import server-only code: the Riot client sends the Riot API key with each request,
     // and the API reads it from its environment. Bundled, either could leak the key.
-    files: ['apps/web/**/*.{ts,tsx}', 'packages/shared/**/*.ts'],
+    files: [
+      'apps/web/**/*.{ts,tsx}',
+      'packages/shared/**/*.ts',
+      'packages/core/**/*.ts',
+    ],
     rules: {
       'no-restricted-imports': [
         'error',

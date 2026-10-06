@@ -13,6 +13,7 @@ RUN corepack enable pnpm
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm fetch
 COPY apps/web/package.json apps/web/
+COPY packages/core/package.json packages/core/
 COPY packages/shared/package.json packages/shared/
 # Vite and its plugins are development dependencies: needed to build. No scripts: the
 # root's "prepare" needs git.
@@ -20,6 +21,7 @@ RUN pnpm install --offline --frozen-lockfile --ignore-scripts \
       --filter @statslol/web...
 COPY tsconfig.base.json ./
 COPY apps/web apps/web/
+COPY packages/core/src packages/core/src/
 COPY packages/shared/src packages/shared/src/
 # vite build, then the check that no secret is in the files (scripts/check-bundle.ts).
 RUN pnpm --filter @statslol/web build

@@ -1,11 +1,14 @@
-import { MATCHES_PER_PAGE, type PlayerParams } from '@statslol/shared';
+import {
+  isArenaGame,
+  MATCHES_PER_PAGE,
+  type PlayerParams,
+} from '@statslol/shared';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useEffect, useId } from 'react';
 
 import { matchHistoryQuery, uniqueMatches } from '../api/players.ts';
 import { describeError } from '../api/errors.ts';
 import { useStaticData } from '../api/static-data.ts';
-import { isArenaGame } from '../queues.ts';
 import { RECENT_GAMES, recentStats } from '../recent-stats.ts';
 import { ErrorMessage } from './ErrorMessage.tsx';
 import styles from './MatchHistory.module.css';

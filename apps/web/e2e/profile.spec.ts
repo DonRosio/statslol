@@ -112,6 +112,32 @@ test('keeps the Arena games for their tab', async ({ page, api }) => {
   );
 });
 
+test('has a Champions tab: the champions played, which the filters narrow down', async ({
+  page,
+  api,
+}) => {
+  knowPlayer(api);
+
+  await page.goto(PLAYER_PAGE_PATH);
+  const bar = page.getByRole('navigation', { name: 'Profile sections' });
+  await bar.getByRole('link', { name: 'Champions' }).click();
+
+  await expect(page).toHaveURL(`${PLAYER_PAGE_PATH}/champions`);
+  const table = page.getByRole('table', { name: 'Champions played' });
+  // The header, then Sylas and Wukong.
+  await expect(table.getByRole('row')).toHaveCount(3);
+  await expect(page.getByText(/6 games counted/)).toBeVisible();
+
+  await page.getByRole('searchbox', { name: 'Search a champion' }).fill('wuk');
+
+  await expect(table.getByRole('row')).toHaveCount(2);
+  await expect(table.getByRole('row').nth(1)).toContainText('Wukong');
+  await expect(bar.getByRole('link', { name: 'Champions' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+});
+
 test('shows names and empty squares when Data Dragon is unreachable', async ({
   page,
   api,

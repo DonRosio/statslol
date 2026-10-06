@@ -21,6 +21,22 @@ export class MemoryMatchStore implements MatchStore {
     return Promise.resolve(found);
   }
 
+  findByPuuid(
+    puuid: string,
+    keyGeneration: number,
+    limit: number,
+  ): Promise<RiotMatch[]> {
+    const found = [...this.rows.values()]
+      .filter(
+        (row) =>
+          row.keyGeneration === keyGeneration &&
+          row.match.metadata.participants?.includes(puuid) === true,
+      )
+      .map((row) => row.match)
+      .sort((a, b) => b.info.gameStartTimestamp - a.info.gameStartTimestamp);
+    return Promise.resolve(found.slice(0, limit));
+  }
+
   save(match: RiotMatch, keyGeneration: number): Promise<void> {
     this.rows.set(match.metadata.matchId, { match, keyGeneration });
     return Promise.resolve();

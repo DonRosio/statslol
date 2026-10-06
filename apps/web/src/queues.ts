@@ -1,5 +1,3 @@
-import type { MatchSummary } from '@statslol/shared';
-
 /**
  * Names of the game modes, by Riot's queue ID, as short as they can be: "Solo/Duo" and
  * "Flex" are ranked, "Normal" is the draft or the blind pick. Source: Riot's list,
@@ -38,18 +36,4 @@ export const QUEUE_FALLBACK_NAME = 'Other mode';
 
 export function queueName(queueId: number): string {
   return QUEUE_NAMES.get(queueId) ?? QUEUE_FALLBACK_NAME;
-}
-
-/** The modes of Arena: 16 players in teams, ranked by place. They have a tab of their own. */
-const ARENA_QUEUE_IDS: ReadonlySet<number> = new Set([1700, 1710, 1750]);
-
-/**
- * Whether a game is an Arena game: its mode is one of Arena, or it was ranked by place (the
- * modes of Arena that the list above does not know yet give a place all the same).
- */
-export function isArenaGame({
-  queueId,
-  placement,
-}: Pick<MatchSummary, 'queueId' | 'placement'>): boolean {
-  return ARENA_QUEUE_IDS.has(queueId) || placement !== null;
 }

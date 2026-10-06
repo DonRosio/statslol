@@ -16,6 +16,16 @@ export interface MatchStore {
   ): Promise<Map<string, RiotMatch>>;
 
   /**
+   * The most recent stored matches in which this PUUID played, the most recent first (at
+   * most `limit`). Same rule as `findMany` for the key generation.
+   */
+  findByPuuid(
+    puuid: string,
+    keyGeneration: number,
+    limit: number,
+  ): Promise<RiotMatch[]>;
+
+  /**
    * Stores a match: one row per match. A match is only fetched again when its row is not
    * usable (another key generation, or data that no longer fits the schema): it replaces it.
    */
@@ -44,6 +54,29 @@ export function createMatchStore(db: Database): MatchStore {
         if (result.success) found.set(row.id, result.data);
       }
       return found;
+    },
+
+    async findByPuuid(puuid, keyGeneration, limit) {
+      const rows = await db
+        .select({ id: matches.id, data: matches.data })
+        .from(matches)
+        .where(
+          and(
+            eq(matches.keyGeneration, keyGeneration),
+            // The same expression as the index matches_participants_idx, so it is used.
+            sql`${matches.data} -> 'metadata' -> 'participants' @> ${JSON.stringify([puuid])}::jsonb`,
+          ),
+        )
+        .orderBy(
+          sql`(${matches.data} -> 'info' ->> 'gameStartTimestamp')::bigint desc`,
+        )
+        .limit(limit);
+
+      // A row that does not fit the schema any more is left out, as in `findMany`.
+      return rows.flatMap((row) => {
+        const result = riotMatchSchema.safeParse(row.data);
+        return result.success ? [result.data] : [];
+      });
     },
 
     async save(match, keyGeneration) {

@@ -25,6 +25,7 @@ import { matchDetailsRoutes } from './routes/match-details.ts';
 import { matchRanksRoutes } from './routes/match-ranks.ts';
 import { playerRoutes } from './routes/players.ts';
 import { staticDataRoutes } from './routes/static-data.ts';
+import { createChampionStatsService } from './services/champion-stats.ts';
 import { createMatchHistoryService } from './services/match-history.ts';
 import { createMatchLoader } from './services/match-loader.ts';
 import { createMatchRanksService } from './services/match-ranks.ts';
@@ -140,9 +141,11 @@ export function buildApp(
   const cachedRiot = cachedRiotClient(riot, cache, {
     keyGeneration: config.riotKeyGeneration,
   });
+  const matchStore =
+    options.matchStore ?? connectDatabase(app, config.database);
   const matches = createMatchLoader({
     riot: cachedRiot,
-    store: options.matchStore ?? connectDatabase(app, config.database),
+    store: matchStore,
     keyGeneration: config.riotKeyGeneration,
   });
   const matchHistory = createMatchHistoryService({
@@ -156,6 +159,11 @@ export function buildApp(
     prefix: '/api/v1',
     riot: cachedRiot,
     matchHistory,
+    championStats: createChampionStatsService({
+      riot: cachedRiot,
+      store: matchStore,
+      keyGeneration: config.riotKeyGeneration,
+    }),
     cache,
   });
   app.register(matchDetailsRoutes, { prefix: '/api/v1', matches });

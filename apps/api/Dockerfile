@@ -16,6 +16,7 @@ RUN corepack enable pnpm
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm fetch --prod
 COPY apps/api/package.json apps/api/
+COPY packages/core/package.json packages/core/
 COPY packages/riot-client/package.json packages/riot-client/
 COPY packages/shared/package.json packages/shared/
 # Only the API and the packages it uses, without their development tools. No scripts: the
@@ -24,6 +25,7 @@ RUN pnpm install --offline --frozen-lockfile --prod --ignore-scripts \
       --filter @statslol/api...
 COPY apps/api/src apps/api/src/
 COPY apps/api/drizzle apps/api/drizzle/
+COPY packages/core/src packages/core/src/
 COPY packages/riot-client/src packages/riot-client/src/
 COPY packages/shared/src packages/shared/src/
 

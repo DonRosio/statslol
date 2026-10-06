@@ -10,7 +10,8 @@
   padding: 0.5rem 0.875rem;
   border-bottom: 2px solid transparent;
   color: var(--color-soft);
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
+  font-weight: bold;
   text-decoration: none;
 }
 
@@ -21,5 +22,5 @@
 /* NavLink gives the open tab this class. */
 .tab:global(.active) {
   border-bottom-color: var(--color-accent);
-  color: var(--color-text);
+  color: var(--color-accent);
 }

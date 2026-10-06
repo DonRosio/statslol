@@ -1,3 +1,9 @@
+export {
+  championRecordSchema,
+  championRecordsSchema,
+  type ChampionRecord,
+  type ChampionRecords,
+} from './champion-stats.ts';
 export { healthSchema, type Health } from './health.ts';
 export {
   ITEM_SLOTS,
@@ -35,6 +41,7 @@ export {
   type Rank,
   type Tier,
 } from './player-profile.ts';
+export { isArenaGame } from './queues.ts';
 export { REFRESH_COOLDOWN_SECONDS } from './refresh.ts';
 export { DEFAULT_REGION, regionSchema, type Region } from './region.ts';
 export {

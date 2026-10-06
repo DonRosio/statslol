@@ -10,28 +10,24 @@
   gap: 0.25rem 0.5rem;
   padding: 0.25rem 0.625rem;
   border: 1px solid var(--color-border);
-  border-left: 4px solid var(--result-color);
   border-radius: var(--radius);
   /* Opaque, unlike the box around the history: the games are what is read. */
   background-color: var(--result-bg);
   background-image: var(--highlight);
   box-shadow: inset 0 1px 0 var(--color-highlight-edge);
   /* By default a remake: no tint. */
-  --result-color: var(--color-remake);
   --result-bg: var(--color-inset);
   --result-text: var(--color-muted);
   --result-muted: var(--color-muted);
 }
 
 .match[data-result='win'] {
-  --result-color: var(--color-win);
   --result-bg: var(--color-win-bg);
   --result-text: var(--color-win-text);
   --result-muted: var(--color-win-muted);
 }
 
 .match[data-result='loss'] {
-  --result-color: var(--color-loss);
   --result-bg: var(--color-loss-bg);
   --result-text: var(--color-loss-text);
   --result-muted: var(--color-loss-muted);

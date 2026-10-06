@@ -7,7 +7,7 @@ import { playerPath } from './player-path.ts';
  * address is the one of the profile followed by `path` (nothing for the first tab). A tab is
  * added here, and as a child route of the profile (routes.ts), once its content exists: no
  * tab leads to an empty page. Arena has its own tab, after the ones of the usual game (the
- * Champions and Mastery tabs go before it).
+ * Mastery tab goes before it).
  */
 export const PROFILE_TABS: readonly {
   readonly label: string;
@@ -15,6 +15,7 @@ export const PROFILE_TABS: readonly {
   readonly path: string;
 }[] = [
   { label: 'Overview', path: '' },
+  { label: 'Champions', path: 'champions' },
   { label: 'Arena', path: 'arena' },
 ];
 

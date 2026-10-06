@@ -1,4 +1,5 @@
 import {
+  championRecordsSchema,
   matchHistorySchema,
   playerProfileSchema,
   type MatchHistory,
@@ -58,6 +59,26 @@ export function matchHistoryQuery(player: PlayerParams) {
     getNextPageParam: (lastPage) => lastPage.nextStart,
     // The API keeps the list of the latest matches for 2 minutes.
     staleTime: 2 * 60 * 1000,
+  });
+}
+
+/**
+ * GET /api/v1/players/:region/:name/:tag/champions: what the player did with each champion,
+ * added up from the matches stored on the site (the ones their history loaded), by mode and
+ * position.
+ */
+export function championStatsQuery(player: PlayerParams) {
+  return queryOptions({
+    queryKey: [...playerKey(player), 'champions'],
+    queryFn: ({ signal }) =>
+      getJson(
+        `${playerApiPath(player)}/champions`,
+        championRecordsSchema,
+        signal,
+      ),
+    // Cheap to ask (the API only reads its database), and the history grows the stored
+    // matches: the tab asks again each time it opens.
+    staleTime: 0,
   });
 }
 

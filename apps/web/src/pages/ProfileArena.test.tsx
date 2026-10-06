@@ -70,6 +70,7 @@ describe('Arena games', () => {
         .map((link) => [link.textContent, link.getAttribute('aria-current')]),
     ).toEqual([
       ['Overview', null],
+      ['Champions', null],
       ['Arena', 'page'],
     ]);
   });

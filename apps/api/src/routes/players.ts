@@ -1,4 +1,5 @@
 import {
+  championRecordsSchema,
   matchHistorySchema,
   playerParamsSchema,
   playerProfileSchema,
@@ -9,6 +10,7 @@ import { z } from 'zod';
 import type { Cache } from '../cache/cache.ts';
 import type { CachedRiotClient } from '../cache/riot-client.ts';
 import { HttpError } from '../errors.ts';
+import type { ChampionStatsService } from '../services/champion-stats.ts';
 import type { MatchHistoryService } from '../services/match-history.ts';
 import { getPlayerProfile } from '../services/player-profile.ts';
 import { refreshPlayer } from '../services/refresh.ts';
@@ -17,6 +19,7 @@ import type { ZodTypeProvider } from '../zod.ts';
 export interface PlayerRoutesOptions {
   readonly riot: CachedRiotClient;
   readonly matchHistory: MatchHistoryService;
+  readonly championStats: ChampionStatsService;
   readonly cache: Cache;
 }
 
@@ -27,7 +30,7 @@ const matchHistoryQuerySchema = z.object({
 
 export const playerRoutes: FastifyPluginCallback<PlayerRoutesOptions> = (
   app,
-  { riot, matchHistory, cache },
+  { riot, matchHistory, championStats, cache },
   done,
 ) => {
   const routes = app.withTypeProvider<ZodTypeProvider>();
@@ -81,6 +84,30 @@ export const playerRoutes: FastifyPluginCallback<PlayerRoutesOptions> = (
         throw new HttpError(404, 'No player with this Riot ID');
       }
       return history;
+    },
+  );
+
+  routes.get(
+    '/players/:region/:name/:tag/champions',
+    {
+      schema: {
+        params: playerParamsSchema,
+        response: { 200: championRecordsSchema },
+      },
+      // Reads the database only (and the cached account): no call to Riot, but a few
+      // hundred matches to read.
+      config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
+    },
+    async (request) => {
+      const { name, tag } = request.params;
+      const records = await championStats.getRecords({
+        gameName: name,
+        tagLine: tag,
+      });
+      if (records === null) {
+        throw new HttpError(404, 'No player with this Riot ID');
+      }
+      return records;
     },
   );
 

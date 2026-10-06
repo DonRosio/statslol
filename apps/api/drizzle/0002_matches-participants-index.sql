@@ -1,0 +1,1 @@
+CREATE INDEX "matches_participants_idx" ON "matches" USING gin (("data" -> 'metadata' -> 'participants') jsonb_path_ops);

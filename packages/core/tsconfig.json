@@ -1,0 +1,6 @@
+{
+  // The statistics computed from games: pure functions, used by the API and the web app, so
+  // no Node.js or DOM types on purpose.
+  "extends": "../../tsconfig.base.json",
+  "include": ["src"]
+}

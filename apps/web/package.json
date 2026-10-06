@@ -11,6 +11,7 @@
     "test:e2e": "pnpm build && playwright test"
   },
   "dependencies": {
+    "@statslol/core": "workspace:*",
     "@statslol/shared": "workspace:*",
     "@tanstack/react-query": "^5.104.0",
     "react": "^19.3.0",

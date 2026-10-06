@@ -4,6 +4,7 @@ import { Layout } from './Layout.tsx';
 import { HomePage } from './pages/HomePage.tsx';
 import { NotFoundPage } from './pages/NotFoundPage.tsx';
 import { ProfileArena } from './pages/ProfileArena.tsx';
+import { ProfileChampions } from './pages/ProfileChampions.tsx';
 import { ProfileOverview } from './pages/ProfileOverview.tsx';
 import { ProfilePage } from './pages/ProfilePage.tsx';
 import { PLAYER_PATH } from './player-path.ts';
@@ -21,6 +22,7 @@ export const routes: RouteObject[] = [
         // One child for each tab of PROFILE_TABS, the first one being the profile itself.
         children: [
           { index: true, Component: ProfileOverview },
+          { path: 'champions', Component: ProfileChampions },
           { path: 'arena', Component: ProfileArena },
         ],
       },

@@ -158,7 +158,11 @@ const riotParticipantSchema = z.looseObject({
 });
 
 export const riotMatchSchema = z.looseObject({
-  metadata: z.looseObject({ matchId: riotMatchIdSchema }),
+  metadata: z.looseObject({
+    matchId: riotMatchIdSchema,
+    // The PUUIDs of the players. The database searches the matches of a player in this list.
+    participants: z.array(z.string()).optional(),
+  }),
   info: z.looseObject({
     // Milliseconds since 1970.
     gameStartTimestamp: z.number().int().nonnegative(),

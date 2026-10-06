@@ -74,3 +74,39 @@ describe('match store', () => {
     expect((await store.findMany([], 1)).size).toBe(0);
   });
 });
+
+describe('match store, by player', () => {
+  /** A match played by these PUUIDs, started at this time (ms): a larger number is more recent. */
+  function played(id: string, startedAt: number, puuids: string[]) {
+    const match = fakeMatch(id);
+    return {
+      ...match,
+      metadata: { ...match.metadata, participants: puuids },
+      info: { ...match.info, gameStartTimestamp: startedAt },
+    };
+  }
+
+  it('finds the matches of a player, the most recent first, up to the limit', async () => {
+    await store.save(played('EUW1_101', 1000, ['a', 'b']), 1);
+    await store.save(played('EUW1_102', 3000, ['b', 'c']), 1);
+    await store.save(played('EUW1_103', 2000, ['b', 'd']), 1);
+    await store.save(played('EUW1_104', 4000, ['a', 'c']), 1);
+
+    const ids = async (puuid: string, limit: number) =>
+      (await store.findByPuuid(puuid, 1, limit)).map((m) => m.metadata.matchId);
+
+    expect(await ids('b', 10)).toEqual(['EUW1_102', 'EUW1_103', 'EUW1_101']);
+    expect(await ids('b', 2)).toEqual(['EUW1_102', 'EUW1_103']);
+    expect(await ids('a', 10)).toEqual(['EUW1_104', 'EUW1_101']);
+    expect(await ids('nobody', 10)).toEqual([]);
+  });
+
+  it('leaves out the matches of another key generation', async () => {
+    await store.save(played('EUW1_201', 5000, ['gen']), 1);
+    await store.save(played('EUW1_202', 6000, ['gen']), 2);
+
+    const found = await store.findByPuuid('gen', 1, 10);
+
+    expect(found.map((m) => m.metadata.matchId)).toEqual(['EUW1_201']);
+  });
+});

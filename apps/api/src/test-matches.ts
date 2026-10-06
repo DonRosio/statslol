@@ -49,20 +49,26 @@ export function fakeMatch(
     // Some of the ~150 other fields, which the API keeps without reading them.
     challenges: { kda: 8 },
   });
+  const participants = [
+    { ...participant(PLAYER_PUUID, 0), ...player },
+    ...Array.from({ length: 9 }, (_, index) =>
+      participant(`other-puuid-${String(index)}`, index + 1),
+    ),
+  ];
   return {
-    metadata: { dataVersion: '2', matchId: id, participants: [] },
+    metadata: {
+      dataVersion: '2',
+      matchId: id,
+      // As Riot does: the PUUIDs of the players, in the order of info.participants.
+      participants: participants.map((p) => p.puuid),
+    },
     info: {
       gameMode: 'CLASSIC',
       gameStartTimestamp: Date.UTC(2026, 9, 3, 16, 41, 12),
       gameEndTimestamp: Date.UTC(2026, 9, 3, 17, 11, 46),
       gameDuration: 1834,
       queueId: 420,
-      participants: [
-        { ...participant(PLAYER_PUUID, 0), ...player },
-        ...Array.from({ length: 9 }, (_, index) =>
-          participant(`other-puuid-${String(index)}`, index + 1),
-        ),
-      ],
+      participants,
     },
   };
 }

@@ -121,6 +121,14 @@
   --radius-pill: 999px;
 }
 
+/*
+ * The room of the scrollbar is kept even on a page short enough not to need one: going from a
+ * long tab to a short one (Overview, Champions) must not move the page sideways.
+ */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   margin: 0;
   background: var(--color-bg);

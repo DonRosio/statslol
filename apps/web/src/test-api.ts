@@ -3,6 +3,7 @@ import { http, HttpResponse, type HttpResponseResolver } from 'msw';
 
 import {
   ARAM_MATCH,
+  CHAMPION_RECORDS,
   arenaDetails,
   ARENA_MATCH,
   classicDetails,
@@ -50,6 +51,7 @@ export function mockPlayerApi({
         : classicDetails(String(params.matchId)),
     ),
   matchRanks = () => HttpResponse.json(classicRanks()),
+  champions = () => HttpResponse.json({ records: CHAMPION_RECORDS }),
 }: {
   profile?: HttpResponseResolver;
   matches?: HttpResponseResolver;
@@ -57,10 +59,12 @@ export function mockPlayerApi({
   refresh?: HttpResponseResolver;
   matchDetails?: HttpResponseResolver;
   matchRanks?: HttpResponseResolver;
+  champions?: HttpResponseResolver;
 } = {}) {
   server.use(
     http.get('/api/v1/players/:region/:name/:tag', profile),
     http.get('/api/v1/players/:region/:name/:tag/matches', matches),
+    http.get('/api/v1/players/:region/:name/:tag/champions', champions),
     http.post('/api/v1/players/:region/:name/:tag/refresh', refresh),
     http.get('/api/v1/static-data', staticData),
     http.get('/api/v1/matches/:region/:matchId', matchDetails),

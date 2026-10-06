@@ -222,6 +222,9 @@ importers:
       '@redis/client':
         specifier: ^6.3.0
         version: 6.3.0
+      '@statslol/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@statslol/riot-client':
         specifier: workspace:*
         version: link:../../packages/riot-client
@@ -256,6 +259,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@statslol/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@statslol/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -305,6 +311,12 @@ importers:
       vite:
         specifier: 'catalog:'
         version: 8.3.1(@types/node@24.19.0)
+
+  packages/core:
+    dependencies:
+      '@statslol/shared':
+        specifier: workspace:*
+        version: link:../shared
 
   packages/riot-client:
     dependencies:

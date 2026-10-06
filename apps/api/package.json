@@ -13,6 +13,7 @@
     "@fastify/helmet": "^13.1.1",
     "@fastify/rate-limit": "^11.2.0",
     "@redis/client": "^6.3.0",
+    "@statslol/core": "workspace:*",
     "@statslol/riot-client": "workspace:*",
     "@statslol/shared": "workspace:*",
     "drizzle-orm": "^0.45.3",
