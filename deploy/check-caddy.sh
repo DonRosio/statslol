@@ -71,6 +71,14 @@ import /etc/caddy/security.caddy
 	respond /missing 404
 	respond "ok"
 }
+# A proxied answer that works: Caddy adds a Via header of its own, hide_server removes it.
+:8086 {
+	import security_base
+	reverse_proxy 127.0.0.1:8087
+}
+:8087 {
+	respond "ok"
+}
 # A site that sends its headers itself (hide_server only): it must not get the others.
 :8085 {
 	import hide_server
@@ -79,7 +87,7 @@ import /etc/caddy/security.caddy
 }
 TEST
 docker run --detach --name "$container" \
-  --publish 127.0.0.1:18081-18085:8081-8085 \
+  --publish 127.0.0.1:18081-18086:8081-8086 \
   --volume "$work/Caddyfile:/etc/caddy/Caddyfile:ro" \
   --volume "$caddy_dir/security.caddy:/etc/caddy/security.caddy:ro" \
   "$image" >/dev/null
@@ -98,6 +106,7 @@ check() {
   local label="port $port $path"
   grep -q "^http/1.1 $status" <<<"$headers" || fail "$label: expected status $status, got $(head -n 1 <<<"$headers")"
   grep -q '^server:' <<<"$headers" && fail "$label: has a Server header"
+  grep -q '^via:' <<<"$headers" && fail "$label: has a Via header"
   local expecting=present name
   for name in "$@"; do
     if [[ $name == -- ]]; then
@@ -121,6 +130,7 @@ check 18082 /x 301 "${all[@]}" -- Cross-Origin-Opener-Policy
 check 18083 / 502 "${all[@]}" -- Cross-Origin-Opener-Policy
 check 18084 /missing 404 "${all[@]}"
 check 18084 / 200 "${all[@]}"
+check 18086 / 200 "${all[@]}"
 # The strict values replace the base ones.
 strict=$(curl --silent --include --max-time 5 "http://127.0.0.1:18081/open" | tr -d '\r' | tr 'A-Z' 'a-z')
 grep -q '^x-frame-options: deny$' <<<"$strict" || fail "strict: X-Frame-Options is not DENY"

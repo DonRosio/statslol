@@ -34,18 +34,26 @@ Generate the passwords with a password manager and give each friend theirs priva
 Caddy only keeps a hash of them. The browser keeps the name and password until it is
 closed: there is no "log out".
 
-Known limit: Caddy checks a name and password with no limit on attempts. Each attempt with
-a name that does not exist costs the server about a second of processor (Caddy then
-compares with a slow hash of its own, measured at 1.1 to 1.7 s, which cannot be changed).
-A few attempts per second would slow down both websites. Acceptable for a private site
-nobody looks for; to fix (blocking addresses after repeated 401s, or a login with its own
-limits) before the site is announced anywhere.
+Each name and password Caddy checks costs the server about a second of processor (a slow
+hash, measured at 1.1 to 1.7 s, also for a name that does not exist), so repeated guesses
+would slow down both websites. fail2ban stops them: an address refused 10 times in 10
+minutes can no longer reach the websites for an hour, then longer each time it comes back,
+up to a week; SSH stays open to it ([server/README.md](server/README.md), section 8). A
+friend who mistyped too often is let back in with `unbanip`. Still possible: guesses from
+many addresses at once (10 each); a login with its own limits would be the next step if the
+site is ever announced anywhere.
+
+```bash
+sudo fail2ban-client status caddy-statslol-auth               # addresses blocked now
+sudo fail2ban-client set caddy-statslol-auth unbanip <address> # let one back in at once
+```
 
 ```bash
 cd /srv/statslol
 sudo docker compose ps                             # state of the containers
 sudo docker compose logs api --since 1h            # one JSON line per request
 sudo journalctl -u caddy --since today             # Caddy: certificates, errors
+sudo tail -n 5 /var/log/caddy/statslol-access.log  # Caddy: one JSON line per request
 ```
 
 ## Backups

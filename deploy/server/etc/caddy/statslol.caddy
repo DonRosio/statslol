@@ -19,6 +19,19 @@ statslol.donrgames.fr {
 
 	encode zstd gzip
 
+	# One JSON line per request in /var/log/caddy/statslol-access.log, which fail2ban reads to
+	# block an address whose password is refused too often (deploy/server/etc/fail2ban/). Caddy
+	# makes the file readable by itself only and writes no password (the Authorization header
+	# is REDACTED); a few weeks at most are kept, in 1 MiB files.
+	log {
+		output file /var/log/caddy/statslol-access.log {
+			roll_size 1MiB
+			roll_keep 4
+			roll_keep_for 336h
+		}
+		format json
+	}
+
 	handle /api/* {
 		reverse_proxy 127.0.0.1:3100 {
 			# The API sends security headers of its own (helmet): keep only the ones above.
@@ -29,14 +42,10 @@ statslol.donrgames.fr {
 			header_down -Referrer-Policy
 			header_down -Cross-Origin-Opener-Policy
 			header_down -Cross-Origin-Resource-Policy
-			# Caddy's own mark on what it proxies.
-			header_down -Via
 		}
 	}
 
 	handle {
-		reverse_proxy 127.0.0.1:3101 {
-			header_down -Via
-		}
+		reverse_proxy 127.0.0.1:3101
 	}
 }

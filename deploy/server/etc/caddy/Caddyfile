@@ -14,9 +14,7 @@ import /etc/caddy/security.caddy
 
 www.donrgames.fr {
 	import hide_server
-	reverse_proxy 127.0.0.1:3000 {
-		header_down -Via
-	}
+	reverse_proxy 127.0.0.1:3000
 }
 
 donrgames.fr {

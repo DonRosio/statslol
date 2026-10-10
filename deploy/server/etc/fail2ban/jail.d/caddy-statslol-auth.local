@@ -1,0 +1,27 @@
+# Fail2ban jails of the server. A .local file: read after jail.d/defaults-debian.conf, whose
+# values it replaces.
+
+# defaults-debian.conf turns it on. SSH only takes keys (deploy/server/README.md, section 1):
+# there is nothing to guess, and a ban could lock us out of the server.
+[sshd]
+enabled = false
+
+# An address whose name and password basic_auth refused 10 times in 10 minutes can no longer
+# reach the websites (ports 80 and 443, TCP, and UDP for HTTP/3) for an hour, then longer each
+# time it comes back, up to a week. SSH stays open to it. Each refused attempt costs the server
+# about a second of processor: an address gets 10 seconds at most.
+# A friend who opens the site gets one 401 before the browser asks for the password: 10 is far
+# above a normal use, mistakes included.
+[caddy-statslol-auth]
+enabled = true
+filter = caddy-statslol-auth
+logpath = /var/log/caddy/statslol-access.log
+# defaults-debian.conf reads the systemd journal; Caddy writes this file instead.
+backend = auto
+port = http,https
+protocol = tcp,udp
+maxretry = 10
+findtime = 10m
+bantime = 1h
+bantime.increment = true
+bantime.maxtime = 1w

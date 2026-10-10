@@ -12,7 +12,8 @@ Seen from the Internet (step 4.1 of the roadmap):
 - SSH only accepts keys: passwords and `root` are refused;
 - updates install themselves (Ubuntu's security updates, Caddy, Node.js), and the server
   reboots at 04:00 UTC when one of them needs it;
-- `sudo` asks for the password of `ubuntu`.
+- `sudo` asks for the password of `ubuntu`;
+- an address whose password statslol refuses 10 times in 10 minutes is blocked (fail2ban).
 
 Inside: 2 GB of swap, and Docker (for statslol), set up so that root in a container is not
 root on the server (step 4.2).
@@ -201,16 +202,82 @@ Without IPv6 on your connection, the second scan stops at once with
 IPv6 (a phone's connection sharing), or list on the server what could answer in IPv6:
 `sudo ss -6 -tulpnH` (only sshd and caddy).
 
+## 8. fail2ban: repeated failed passwords on statslol
+
+Done on 2026-10-10 (fail2ban 1.0.2 from Ubuntu's `universe`, covered by Ubuntu Pro's ESM Apps).
+
+statslol asks a name and a password (Caddy's `basic_auth`), and each check costs about a
+second of processor. fail2ban reads the access log that Caddy writes for statslol
+(`/var/log/caddy/statslol-access.log`, see `statslol.caddy`) and blocks an address refused 10
+times in 10 minutes: ports 80 and 443, TCP and UDP (HTTP/3), for an hour, then longer each
+time it comes back, up to a week
+([etc/fail2ban/jail.d/caddy-statslol-auth.local](etc/fail2ban/jail.d/caddy-statslol-auth.local)).
+SSH stays open to it, and fail2ban does not watch SSH (see "Not done, on purpose").
+
+The block is a rule of fail2ban's own nftables table (`inet f2b-table`, checked before UFW's
+rules): it also cuts the connections already open, which UFW would let through. The filter
+([etc/fail2ban/filter.d/caddy-statslol-auth.conf](etc/fail2ban/filter.d/caddy-statslol-auth.conf))
+only reads the fields Caddy writes itself: a request cannot pass for another address.
+
+First, the Caddy files of this repository (statslol.caddy writes the log), as in
+[../README.md](../README.md), "Install a change on the running server". Then one request
+creates the log (computer):
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' https://statslol.donrgames.fr/   # 401
+```
+
+On the server, the log must belong to `caddy`, readable by it only, without passwords:
+
+```bash
+sudo ls -l /var/log/caddy/                         # -rw------- caddy caddy … statslol-access.log
+sudo tail -n 1 /var/log/caddy/statslol-access.log  # "status":401, "Authorization":["REDACTED"] if any
+```
+
+Then fail2ban, our files first, so that its first start already uses them (computer, then
+server):
+
+```bash
+scp -r deploy/server/etc/fail2ban serveur:/tmp/server-fail2ban
+```
+
+```bash
+sudo install -D -m 0644 /tmp/server-fail2ban/filter.d/caddy-statslol-auth.conf /etc/fail2ban/filter.d/caddy-statslol-auth.conf
+sudo install -D -m 0644 /tmp/server-fail2ban/jail.d/caddy-statslol-auth.local /etc/fail2ban/jail.d/caddy-statslol-auth.local
+sudo apt install fail2ban
+sudo fail2ban-client -t        # OK: configuration test is successful
+sudo fail2ban-client status    # Jail list: caddy-statslol-auth (no sshd)
+sudo fail2ban-regex /var/log/caddy/statslol-access.log caddy-statslol-auth
+# "Lines: … matched": one per 401 of the log, with your own address
+```
+
+A test ban, with an address reserved for documentation (it belongs to nobody):
+
+```bash
+sudo fail2ban-client set caddy-statslol-auth banip 192.0.2.10
+sudo nft list table inet f2b-table
+# tcp dport { 80, 443 } … and udp dport { 80, 443 } … @addr-set-caddy-statslol-auth reject,
+# with 192.0.2.10 in the set
+sudo fail2ban-client set caddy-statslol-auth unbanip 192.0.2.10
+```
+
+fail2ban comes from Ubuntu's `universe` section: Ubuntu commits to security fixes for `main`
+only. Ubuntu Pro (free for personal use, below) adds `universe` (ESM Apps), installed by the
+automatic updates of section 3.
+
 ## Not done, on purpose
 
-- fail2ban: it slows down password guessing; with keys only, there is nothing to guess.
+- fail2ban for SSH: it slows down password guessing; with keys only, there is nothing to
+  guess, and a ban could lock us out. fail2ban only watches statslol's passwords (section 8):
+  its `sshd` jail, on by default, is turned off.
 - Another SSH port: a scan of every port finds it anyway, and every tool must be told.
 - `AllowUsers` in the SSH configuration: an account added later could not log in, with no
   clear error.
 - Ubuntu 26.04: 24.04 gets security updates until 2029. Changing the release of a server
   that runs websites is a project of its own.
-- Ubuntu Pro, free for personal use: security updates of the `universe` packages (ESM Apps)
-  and kernel fixes without reboot (Livepatch). Possible later.
+- Ubuntu Pro, free for personal use: security updates of the `universe` packages (ESM Apps,
+  fail2ban among them) and kernel fixes without reboot (Livepatch). Recommended since
+  section 8: a token from https://ubuntu.com/pro/dashboard, then `sudo pro attach <token>`.
 
 ## Also on this server
 

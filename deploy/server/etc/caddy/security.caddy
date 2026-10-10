@@ -20,6 +20,9 @@
 (hide_server) {
 	# Apart from the other headers: removing a header makes Caddy defer the whole directive.
 	header -Server
+	# The "Via: 1.1 Caddy" that Caddy adds to what it proxies. Only a deferred removal reaches it:
+	# `header_down -Via` in reverse_proxy does not (tried on a proxied 200).
+	header -Via
 	# Caddy writes an error (the 401 of a password, a 404, a bad gateway) with its own Server
 	# header, out of reach of the line above: this block writes them without. The headers that
 	# were set before the error (WWW-Authenticate, the security headers) stay.
