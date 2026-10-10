@@ -1,0 +1,59 @@
+# Blocks shared by every website of the server: `import` them in a site block.
+#
+#   import hide_server       for any site, whatever it sends itself: Caddy no longer says what it
+#                            is in a Server header.
+#   import security_base     for a site that sends no security headers of its own: what no site
+#                            needs to be without (it already imports hide_server).
+#   import security_strict   on top of security_base, for a site that loads nothing from other
+#                            origins and is never opened from or embedded in another site.
+#
+# A site that already sends its own headers (its application does, e.g. with helmet) only
+# takes hide_server: the same header twice, or a stricter value than the application's (a
+# Permissions-Policy that forbids the microphone of a game), would break it.
+#
+# The Content-Security-Policy is not here: it says what a site loads, so each site writes its
+# own. Try it first as Content-Security-Policy-Report-Only, which only reports in the browser's
+# console what it would have blocked.
+#
+# Used in another project: copy this file next to its Caddyfile and `import` it there.
+
+(hide_server) {
+	# Apart from the other headers: removing a header makes Caddy defer the whole directive.
+	header -Server
+	# Caddy writes an error (the 401 of a password, a 404, a bad gateway) with its own Server
+	# header, out of reach of the line above: this block writes them without. The headers that
+	# were set before the error (WWW-Authenticate, the security headers) stay.
+	handle_errors {
+		header -Server
+		respond "{err.status_code} {err.status_text}" {err.status_code}
+	}
+}
+
+(security_base) {
+	import hide_server
+	# Set at once, not when the answer is written, so that a 401 or an error has them too.
+	header {
+		# Browsers will only use HTTPS for this site, for a year.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		# A file is read as the type the server says, never guessed (no script out of a picture).
+		X-Content-Type-Options nosniff
+		# Other sites get the address of this one, without the path, and only over HTTPS.
+		Referrer-Policy strict-origin-when-cross-origin
+		# The page itself cannot use the camera, the microphone, the position...
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		# Only a page of the same site may put it in a frame (clickjacking).
+		X-Frame-Options SAMEORIGIN
+	}
+}
+
+(security_strict) {
+	header {
+		# Replace the two of security_base with stricter ones.
+		X-Frame-Options DENY
+		Referrer-Policy no-referrer
+		# No other site's window can reach this one (no window.opener), and no other site can
+		# load its files (pictures, scripts) into its own pages.
+		Cross-Origin-Opener-Policy same-origin
+		Cross-Origin-Resource-Policy same-origin
+	}
+}

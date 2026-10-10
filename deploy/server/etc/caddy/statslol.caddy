@@ -9,23 +9,13 @@ statslol.donrgames.fr {
 		import /etc/caddy/statslol-friends
 	}
 
-	# Security headers. Set at once, not when the answer is written, so that the 401 of
-	# basic_auth, all that strangers ever see, has them too.
-	header {
-		# Browsers will only use HTTPS for this site, for a year.
-		Strict-Transport-Security "max-age=31536000; includeSubDomains"
-		# What the pages may load: their own scripts, styles and requests, and the images
-		# of Data Dragon (Riot's CDN). Nothing inline, no plugin, never inside a frame.
-		Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' https://ddragon.leagueoflegends.com; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
-		X-Frame-Options DENY
-		X-Content-Type-Options nosniff
-		Referrer-Policy no-referrer
-		Cross-Origin-Opener-Policy same-origin
-		Cross-Origin-Resource-Policy same-origin
-		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
-	}
-	# Apart: removing a header makes Caddy defer the whole directive.
-	header -Server
+	# Security headers: those every site gets (security.caddy), the strict ones, and the policy
+	# of what the pages may load (their own scripts, styles and requests, and the images of Data
+	# Dragon, Riot's CDN; nothing inline, no plugin, never inside a frame). Set at once, so that
+	# the 401 of basic_auth, all that strangers ever see, has them too.
+	import security_base
+	import security_strict
+	header Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' https://ddragon.leagueoflegends.com; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
 
 	encode zstd gzip
 
@@ -39,10 +29,14 @@ statslol.donrgames.fr {
 			header_down -Referrer-Policy
 			header_down -Cross-Origin-Opener-Policy
 			header_down -Cross-Origin-Resource-Policy
+			# Caddy's own mark on what it proxies.
+			header_down -Via
 		}
 	}
 
 	handle {
-		reverse_proxy 127.0.0.1:3101
+		reverse_proxy 127.0.0.1:3101 {
+			header_down -Via
+		}
 	}
 }

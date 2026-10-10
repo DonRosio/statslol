@@ -8,11 +8,19 @@
 	admin unix//var/lib/caddy/admin.sock
 }
 
+# The blocks the sites share (security.caddy). donrgames.fr sends its security headers itself
+# (its application does): it only hides the Server header.
+import /etc/caddy/security.caddy
+
 www.donrgames.fr {
-	reverse_proxy 127.0.0.1:3000
+	import hide_server
+	reverse_proxy 127.0.0.1:3000 {
+		header_down -Via
+	}
 }
 
 donrgames.fr {
+	import hide_server
 	redir https://www.donrgames.fr{uri} permanent
 }
 

@@ -14,6 +14,9 @@ https://statslol.donrgames.fr, for a list of friends.
   the API (port 3100), the rest to the web app (port 3101).
 - `statslol-friends` ([server/usr/local/sbin/](server/usr/local/sbin/)) manages the
   friends.
+- The security headers every site of the server shares are in
+  [server/etc/caddy/security.caddy](server/etc/caddy/security.caddy); see
+  [Security headers of the sites](#security-headers-of-the-sites).
 
 Commands marked "computer" run on your computer, from the root of this repository; the
 others on the server, as `ubuntu`.
@@ -109,6 +112,61 @@ sudo docker compose up --detach --wait    # replaces the containers whose image 
 To go back, do the same with the previous tag. The migrations are not undone: only go
 back to a version that works with the current tables.
 
+## Security headers of the sites
+
+`/etc/caddy/security.caddy` holds blocks that any site of the server `import`s:
+
+| Block             | For                                                                 | What it does                                                                                                                               |
+| ----------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `hide_server`     | every site                                                          | Caddy no longer says what it is (`Server` header), also on the 401 of a password, a redirection, an error                                  |
+| `security_base`   | a site that sends no security headers of its own                    | `hide_server`, HTTPS only for a year, no guessing of file types, a short `Referrer-Policy`, no camera or microphone, only framed by itself |
+| `security_strict` | after `security_base`, a site that loads nothing from other origins | never framed, no `Referrer-Policy`, windows and files of other sites kept out                                                              |
+
+The `Content-Security-Policy` is each site's own (it says what the site loads): statslol writes
+its own in `statslol.caddy`. A site whose application already sends its security headers
+(donrgames.fr does) only takes `hide_server`: the same header twice, or a stricter value
+than the application's (a `Permissions-Policy` that forbids the microphone of a game), would
+break it.
+
+For another project on this server, add `import security_base` (and `import security_strict`
+if it fits) to its site block. For a project on another server, copy `security.caddy` next to its
+Caddyfile and add `import /path/to/security.caddy` at the top.
+
+Try a change before installing it (computer, needs Docker; it starts a throwaway Caddy of the
+production image): `deploy/check-caddy.sh` validates the whole configuration, and checks the
+headers on a page, a password asked, a redirection, a bad gateway and a 404.
+
+### Install a change on the running server
+
+A reload of Caddy interrupts no website, and the configuration is checked before it. Each
+command is one block (computer first, then the server).
+
+```bash
+scp deploy/server/etc/caddy/Caddyfile deploy/server/etc/caddy/security.caddy deploy/server/etc/caddy/statslol.caddy serveur:/tmp/
+```
+
+```bash
+ssh -t serveur 'sudo cp -a /etc/caddy /root/caddy-before-security && sudo install -m 0644 /tmp/Caddyfile /tmp/security.caddy /tmp/statslol.caddy /etc/caddy/ && sudo -u caddy env HOME=/var/lib/caddy caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy'
+```
+
+Then look at what a stranger gets from each site (computer):
+
+```bash
+for url in https://www.donrgames.fr/ https://donrgames.fr/ https://statslol.donrgames.fr/ https://statslol.donrgames.fr/api/health; do echo "== $url"; curl -sI "$url" | grep -iE '^(HTTP|server|via|location|www-authenticate|strict-transport|content-security|permissions-policy|x-frame)'; done
+```
+
+There must be no `server` and no `via` line anywhere, and donrgames.fr must still send its own
+`content-security-policy` and `permissions-policy: microphone=(self)`. To go back:
+
+```bash
+ssh -t serveur 'sudo cp -a /root/caddy-before-security/. /etc/caddy/ && sudo rm /etc/caddy/security.caddy && sudo systemctl reload caddy'
+```
+
+What no configuration of Caddy hides: the redirection from HTTP to HTTPS that Caddy writes by
+itself still says `Server: Caddy`, and a site seen by a scanner is still known to run on Caddy
+by other signs (the way it speaks HTTP/3, its error pages). The header is not a defence, only a
+little less said.
+
 ## First installation
 
 Done on 2026-10-04 (the backups, section 4, on 2026-10-04 too).
@@ -179,7 +237,7 @@ change with `caddy validate` and reloads Caddy, which interrupts no website.
 sudo install -m 0755 /tmp/statslol/usr/local/sbin/statslol-friends /usr/local/sbin/
 sudo statslol-friends add <your name>
 sudo cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.before-statslol
-sudo install -m 0644 /tmp/statslol/etc/caddy/Caddyfile /tmp/statslol/etc/caddy/statslol.caddy /etc/caddy/
+sudo install -m 0644 /tmp/statslol/etc/caddy/Caddyfile /tmp/statslol/etc/caddy/security.caddy /tmp/statslol/etc/caddy/statslol.caddy /etc/caddy/
 sudo -u caddy env HOME=/var/lib/caddy caddy validate --config /etc/caddy/Caddyfile
 # Once: the running Caddy still listens on localhost:2019; the new configuration moves its
 # admin API to a socket only root and Caddy can use. Afterwards: sudo systemctl reload caddy
