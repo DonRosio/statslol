@@ -1,14 +1,16 @@
 # The server
 
 statslol runs on an OVH VPS (Ubuntu 24.04 LTS, 2 vCPU, 4 GB of RAM, 40 GB of disk) that it
-shares with another website, donrgames.fr. This folder holds the files we added to the
+shares with another website, donrgames.fr, and with Plume Lite (plume.donrgames.fr, a chat
+and voice server; repository DonRosio/plume-lite). This folder holds the files we added to the
 server, at the path they have there (`etc/…` here is `/etc/…` on the server), and how to set
 up a server the same way. No address, password or key: the repository does not need them.
 
 Seen from the Internet (step 4.1 of the roadmap):
 
 - only ports 22 (SSH), 80 and 443 (Caddy; TCP, plus UDP 443 for HTTP/3) answer, in IPv4 and
-  IPv6; the firewall drops everything else;
+  IPv6, plus 7881 (TCP) and 7882 (UDP) in IPv4: the audio of Plume Lite's voice server
+  (LiveKit), ports published by Docker; the firewall drops everything else;
 - SSH only accepts keys: passwords and `root` are refused;
 - updates install themselves (Ubuntu's security updates, Caddy, Node.js), and the server
   reboots at 04:00 UTC when one of them needs it;
@@ -194,7 +196,7 @@ container can mount `/` in it), which would undo section 4. Docker commands go t
 # computer (sudo apt install nmap)
 nmap -Pn -p- -T4 <IPv4 address of the server>
 nmap -6 -Pn -p- -T4 <IPv6 address of the server>
-# 22/tcp, 80/tcp and 443/tcp open; every other port filtered
+# 22/tcp, 80/tcp, 443/tcp and 7881/tcp (Plume Lite's voice) open; every other port filtered
 ```
 
 Without IPv6 on your connection, the second scan stops at once with
@@ -284,8 +286,10 @@ automatic updates of section 3.
 - The other website runs as its own user, `mini-jeux`: a systemd user service,
   `mini-jeux.service`, started at boot because the user "lingers" (`loginctl enable-linger`).
   It listens on `127.0.0.1:3000`.
-- Caddy, installed from its own apt repository, serves both websites
+- Caddy, installed from its own apt repository, serves both websites and Plume Lite
   ([etc/caddy/Caddyfile](etc/caddy/Caddyfile); statslol's part: [../README.md](../README.md)).
+  Plume Lite's part, `/etc/caddy/plume-lite.caddy`, comes from its own repository: the
+  Caddyfile here must keep the line that imports it.
   Its admin API, which can change its whole configuration, listened on `127.0.0.1:2019`,
   open to any program of the server; it is now a Unix socket in Caddy's own folder
   (`/var/lib/caddy/admin.sock`, mode `0200`): only root and Caddy can use it.

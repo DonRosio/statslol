@@ -1,5 +1,6 @@
-# Caddy of the server: serves donrgames.fr and statslol (HTTPS certificates included).
-# The donrgames.fr blocks belong to that website; statslol's site is in statslol.caddy.
+# Caddy of the server: serves donrgames.fr, statslol and Plume Lite (HTTPS certificates
+# included). The donrgames.fr blocks belong to that website; statslol's site is in
+# statslol.caddy, Plume Lite's in plume-lite.caddy.
 {
 	# The admin API can change the whole configuration of Caddy. By default it listens on
 	# localhost:2019, open to every program of the server; this socket, in Caddy's own
@@ -23,3 +24,8 @@ donrgames.fr {
 }
 
 import /etc/caddy/statslol.caddy
+
+# Plume Lite (plume.donrgames.fr), another project on this server: its site block comes from
+# its own repository, DonRosio/plume-lite (deploy/plume-lite.caddy, deploy/README.md).
+# Installing this file without this line takes Plume Lite offline.
+import /etc/caddy/plume-lite.caddy
