@@ -1,10 +1,11 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { delay, HttpResponse, type HttpResponseResolver } from 'msw';
 import { describe, expect, it } from 'vitest';
 
 import { failure, matchPages, mockPlayerApi } from '../test-api.ts';
 import { matchSummary, PLAYER_PAGE_PATH, PROFILE } from '../test-data.ts';
+import { recordRequests } from '../test-server.ts';
 import { findMatches, renderPage } from '../test-utils.tsx';
 
 /** Answers `first` to the first request, then `then` to the next ones. */
@@ -169,16 +170,28 @@ describe('profile page, when a player cannot be shown', () => {
         0: { matches: [matchSummary('KR_2')], nextStart: 1 },
       }),
     });
+    const requests = recordRequests();
     renderPage(PLAYER_PAGE_PATH);
     await findMatches();
-
-    await userEvent
-      .setup()
-      .click(screen.getByRole('button', { name: 'Show more' }));
-
+    // The next page is loaded without waiting for a click (the first one holds too few games):
+    // the button only comes back once that has failed.
+    const more = await screen.findByRole('button', { name: 'Show more' });
     expect((await screen.findByRole('alert')).textContent).toBe(
       'More matches could not be loaded. Something went wrong on our side. Try again in a moment.',
     );
+    const askedBefore = requests.filter((path) =>
+      path.endsWith('/matches'),
+    ).length;
+
+    await userEvent.setup().click(more);
+
+    // The click asks again for the page that failed, and the button stays for another try.
+    await waitFor(() => {
+      expect(
+        requests.filter((path) => path.endsWith('/matches')).length,
+      ).toBeGreaterThan(askedBefore);
+    });
+    expect(await screen.findByRole('alert')).toBeDefined();
     expect(screen.getByRole('button', { name: 'Show more' })).toBeDefined();
   });
 
