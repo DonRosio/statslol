@@ -2,7 +2,10 @@
 
 League of Legends stats website: search a player by Riot ID, view their profile, rank and match history.
 
-Private project, phase 1 (used among friends).
+Personal project, phase 1: used among friends, with its own deployment (see `deploy/`).
+statslol isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or
+anyone officially involved in producing or managing Riot Games properties. Riot Games, and all
+associated properties are trademarks or registered trademarks of Riot Games, Inc.
 
 ## Requirements
 
@@ -186,3 +189,35 @@ pnpm then reports that Vite "failed with signal SIGINT": that is expected).
     `sha-<first 7 characters of the commit>`.
   - `deploy/server/`: the files added to the server (VPS) the site runs on, and how to set
     up a server the same way: SSH with keys only, firewall, automatic updates, swap, Docker.
+
+## Security
+
+The API key of Riot never reaches the browser (see the four barriers above), the containers run
+read-only without capabilities, and a pre-commit hook plus a weekly CI run scan for secrets and
+vulnerable dependencies. To report a vulnerability, see [SECURITY.md](SECURITY.md).
+
+## Approach
+
+statslol is a way to build a complete, secure web application end to end: a League of Legends
+stats site, from the Riot API to a deployment on my own server, that I and my friends really use.
+
+I wrote the specification and drove the project, and I developed it with the assistance of
+**Claude** (Anthropic), used as a pair-programming partner. Every commit message ends with a line
+saying it was developed with Claude, for that reason. My role: draw the wireframes of the pages
+and the logo, choose the look (palette, accent, density of the match cards), set the roadmap in
+small steps (the profile, the match history, the details of a match, the champions of a season,
+the mastery), decide what is worth building, and ask for security first in every choice (the
+Riot key kept on the server, validated input, rate limits that stay under Riot's, a hardened server).
+I also reviewed and tested each step, and ran the deployment myself.
+
+The code was written with Claude, then checked: strict TypeScript, type-aware linting, unit tests,
+tests against a real PostgreSQL and Redis, end-to-end tests in a real browser (Playwright), a
+dependency audit and a secret scan in CI, and Docker images tried as in production before they are
+published.
+
+## Credits and license
+
+The code is under the [MIT license](LICENSE). The game images of the web app (ranks, champion
+mastery, objectives and roles) are artwork of League of Legends, © Riot Games, used under Riot's
+policies: they are not covered by the MIT license. Champion, item, spell and rune images are
+loaded from Riot's Data Dragon and are not in this repository.
