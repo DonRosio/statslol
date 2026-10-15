@@ -27,7 +27,7 @@ www.donrgames.fr, donrgames.fr {
 
 import /etc/caddy/statslol.caddy
 
-# Plume Lite (plume.donrgames.fr), another project on this server: its site block comes from
+# Plume Lite (plume-lite.donr-corp.fr), another project on this server: its site block comes from
 # its own repository, DonRosio/plume-lite (deploy/plume-lite.caddy, deploy/README.md).
 # Installing this file without this line takes Plume Lite offline.
 import /etc/caddy/plume-lite.caddy

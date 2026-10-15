@@ -1,7 +1,7 @@
 # Deploying statslol
 
 statslol runs on the server described in [server/README.md](server/README.md), at
-https://statslol.donrgames.fr, for a list of friends.
+https://stats-lol.donr-corp.fr, for a list of friends.
 
 - `/srv/statslol/` holds `compose.yaml`, `postgres-initdb/` (copies of this folder) and
   `.env` (made from `.env.example`, readable by root only). `compose.yaml` runs the images
@@ -9,7 +9,7 @@ https://statslol.donrgames.fr, for a list of friends.
   commit of `main`, tagged `sha-<first 7 characters of the commit>`; `STATSLOL_VERSION` in
   `.env` picks the version.
 - The Caddy of the server ([server/etc/caddy/](server/etc/caddy/)) serves
-  `statslol.donrgames.fr` with HTTPS, asks a name and a password (the friends of
+  `stats-lol.donr-corp.fr` (and, as an alias, its old name `statslol.donrgames.fr`) with HTTPS, asks a name and a password (the friends of
   `/etc/caddy/statslol-friends`) and sends the requests to the containers: `/api/*` to
   the API (port 3100), the rest to the web app (port 3101).
 - `statslol-friends` ([server/usr/local/sbin/](server/usr/local/sbin/)) manages the
@@ -132,7 +132,7 @@ back to a version that works with the current tables.
 
 The `Content-Security-Policy` is each site's own (it says what the site loads): statslol writes
 its own in `statslol.caddy`. A site whose application already sends its security headers
-(donrgames.fr does) only takes `hide_server`: the same header twice, or a stricter value
+(the mini-games site does) only takes `hide_server`: the same header twice, or a stricter value
 than the application's (a `Permissions-Policy` that forbids the microphone of a game), would
 break it.
 
@@ -160,10 +160,10 @@ ssh -t serveur 'sudo cp -a /etc/caddy /root/caddy-before-security && sudo instal
 Then look at what a stranger gets from each site (computer):
 
 ```bash
-for url in https://www.donrgames.fr/ https://donrgames.fr/ https://statslol.donrgames.fr/ https://statslol.donrgames.fr/api/health; do echo "== $url"; curl -sI "$url" | grep -iE '^(HTTP|server|via|location|www-authenticate|strict-transport|content-security|permissions-policy|x-frame)'; done
+for url in https://games.donr-corp.fr/ https://www.donrgames.fr/ https://stats-lol.donr-corp.fr/ https://stats-lol.donr-corp.fr/api/health; do echo "== $url"; curl -sI "$url" | grep -iE '^(HTTP|server|via|location|www-authenticate|strict-transport|content-security|permissions-policy|x-frame)'; done
 ```
 
-There must be no `server` and no `via` line anywhere, and donrgames.fr must still send its own
+There must be no `server` and no `via` line anywhere, and the mini-games site must still send its own
 `content-security-policy` and `permissions-policy: microphone=(self)`. To go back:
 
 ```bash
@@ -252,6 +252,6 @@ sudo -u caddy env HOME=/var/lib/caddy caddy validate --config /etc/caddy/Caddyfi
 sudo -u caddy env HOME=/var/lib/caddy caddy reload --config /etc/caddy/Caddyfile --address localhost:2019
 ```
 
-Caddy gets the HTTPS certificate of `statslol.donrgames.fr` by itself within seconds
+Caddy gets the HTTPS certificate of `stats-lol.donr-corp.fr` by itself within seconds
 (`sudo journalctl -u caddy | grep -i 'certificate obtained'`). It is then listed in the
 public logs of certificates: robots visit, and only meet the password.

@@ -1,8 +1,9 @@
 # The server
 
 statslol runs on an OVH VPS (Ubuntu 24.04 LTS, 2 vCPU, 4 GB of RAM, 40 GB of disk) that it
-shares with another website, donrgames.fr, and with Plume Lite (plume.donrgames.fr, a chat
-and voice server; repository DonRosio/plume-lite). This folder holds the files we added to the
+shares with another website, the mini-games site (games.donr-corp.fr), and with Plume Lite
+(plume-lite.donr-corp.fr, a chat and voice server; repository DonRosio/plume-lite). This folder
+holds the files we added to the
 server, at the path they have there (`etc/…` here is `/etc/…` on the server), and how to set
 up a server the same way. No address, password or key: the repository does not need them.
 
@@ -226,7 +227,7 @@ First, the Caddy files of this repository (statslol.caddy writes the log), as in
 creates the log (computer):
 
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' https://statslol.donrgames.fr/   # 401
+curl -s -o /dev/null -w '%{http_code}\n' https://stats-lol.donr-corp.fr/   # 401
 ```
 
 On the server, the log must belong to `caddy`, readable by it only, without passwords:
@@ -293,6 +294,7 @@ automatic updates of section 3.
   Its admin API, which can change its whole configuration, listened on `127.0.0.1:2019`,
   open to any program of the server; it is now a Unix socket in Caddy's own folder
   (`/var/lib/caddy/admin.sock`, mode `0200`): only root and Caddy can use it.
-- DNS: the zone of donrgames.fr is managed at OVH. `statslol.donrgames.fr` is an A record
-  to the server's IPv4 address; like donrgames.fr, it has no AAAA record (the websites are
-  reached in IPv4 only).
+- DNS: the zones of donr-corp.fr and donrgames.fr are managed at OVH. `stats-lol.donr-corp.fr`
+  is an A record to the server's IPv4 address, like `games` and `plume-lite` of the same zone
+  (the old names of the sites are still served or redirected from donrgames.fr); none has an AAAA
+  record (the websites are reached in IPv4 only).

@@ -170,7 +170,7 @@ pnpm then reports that Vite "failed with signal SIGINT": that is expected).
     - `pnpm build` searches every file of `apps/web/dist` for a Riot key and for the Riot
       client's address and header (`apps/web/scripts/check-bundle.ts`), and fails if one
       is there.
-- `deploy/`: statslol in production, at https://statslol.donrgames.fr for a list of friends.
+- `deploy/`: statslol in production, at https://stats-lol.donr-corp.fr for a list of friends.
   `deploy/README.md`: deploying a version, managing the friends who have access, backups
   (`deploy/check-backup.sh` tries one), monitoring.
   - `deploy/compose.yaml`: runs the images of the API and of the web app with PostgreSQL

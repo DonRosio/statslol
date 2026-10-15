@@ -29,6 +29,8 @@ echo "1. The configuration of the server is valid"
 # hash of a password).
 cp -r "$caddy_dir" "$work/etc-caddy"
 echo "friend $hash" >"$work/etc-caddy/statslol-friends"
+# Plume Lite's block lives in its own repository: an empty file lets the import resolve.
+: >"$work/etc-caddy/plume-lite.caddy"
 if docker run --rm \
   --volume "$work/etc-caddy:/etc/caddy:ro" \
   "$image" caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>"$work/validate.log"; then

@@ -1,5 +1,5 @@
 // Also install updates from the third-party repositories of this server:
-// Caddy (faces the Internet), Node.js 24.x (runs donrgames.fr) and Docker (runs statslol).
+// Caddy (faces the Internet), Node.js 24.x (runs the mini-games site) and Docker (runs statslol).
 Unattended-Upgrade::Origins-Pattern {
         "site=dl.cloudsmith.io";
         "site=deb.nodesource.com";

@@ -1,6 +1,8 @@
 # statslol, imported by /etc/caddy/Caddyfile. Its containers (deploy/compose.yaml) only
 # listen on the server itself: the API on port 3100, the web app on port 3101.
-statslol.donrgames.fr {
+# The old name (statslol.donrgames.fr) stays served as an alias, with the same friends and
+# password, for the bookmarks and the uptime monitor that still use it.
+stats-lol.donr-corp.fr, statslol.donrgames.fr {
 	# Only the friends listed in statslol-friends may open it: the browser asks a name and
 	# a password. Managed with `sudo statslol-friends`, never by hand. Except /api/health,
 	# which only answers "ok": an uptime monitor checks it from the Internet.
