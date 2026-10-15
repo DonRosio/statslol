@@ -1,5 +1,5 @@
-# Caddy of the server: serves donrgames.fr, statslol and Plume Lite (HTTPS certificates
-# included). The donrgames.fr blocks belong to that website; statslol's site is in
+# Caddy of the server: serves the mini-games site, statslol and Plume Lite (HTTPS certificates
+# included). The mini-games blocks belong to that website; statslol's site is in
 # statslol.caddy, Plume Lite's in plume-lite.caddy.
 {
 	# The admin API can change the whole configuration of Caddy. By default it listens on
@@ -9,18 +9,20 @@
 	admin unix//var/lib/caddy/admin.sock
 }
 
-# The blocks the sites share (security.caddy). donrgames.fr sends its security headers itself
+# The blocks the sites share (security.caddy). The mini-games site sends its security headers itself
 # (its application does): it only hides the Server header.
 import /etc/caddy/security.caddy
 
-www.donrgames.fr {
+# The mini-games site (its application sends its own security headers: it only hides the Server
+# header). Its old names redirect to it; they used to be its address (www.donrgames.fr).
+games.donr-corp.fr {
 	import hide_server
 	reverse_proxy 127.0.0.1:3000
 }
 
-donrgames.fr {
+www.donrgames.fr, donrgames.fr {
 	import hide_server
-	redir https://www.donrgames.fr{uri} permanent
+	redir https://games.donr-corp.fr{uri}
 }
 
 import /etc/caddy/statslol.caddy
