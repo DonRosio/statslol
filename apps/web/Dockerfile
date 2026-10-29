@@ -27,7 +27,7 @@ COPY packages/shared/src packages/shared/src/
 RUN pnpm --filter @statslol/web build
 
 # --- Stage 2: the image that runs ---------------------------------------------------------
-FROM caddy:2.11-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
+FROM caddy:2.11-alpine@sha256:eb4d35b7452d1ab6171fbdbe8d9275b2301dad6dad92115d91e19fb9b24d510f
 # The image lets Caddy open ports below 1024 through a file capability. Linux refuses to
 # start a program with such a capability once the container has dropped them all
 # (deploy/compose.yaml), and port 8080 does not need it.
