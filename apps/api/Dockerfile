@@ -4,7 +4,7 @@
 
 # Node.js 24 on Alpine Linux, pinned by digest like the images of compose.yaml: the tag
 # alone could be moved to other contents. Dependabot proposes the updates.
-FROM node:24.21.0-alpine3.24@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS node
+FROM node:24.22.2-alpine3.24@sha256:8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85 AS node
 
 # --- Stage 1: install the dependencies the API runs with ---------------------------------
 FROM node AS build
